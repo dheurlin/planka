@@ -2,7 +2,10 @@ import type { PlaybackProcessorMessage } from './PlaybackProcessor.js';
 import { assertFunction, assertMemory, notImplementedFuncs } from './wasm-helpers.js';
 
 declare const fileSelect: HTMLInputElement;
+declare const playbackSpeedSlider: HTMLInputElement;
+
 let cxt = new AudioContext();
+let player: AudioWorkletNode | undefined;
 
 fileSelect.addEventListener('change', async () => {
   if (fileSelect.files == null || fileSelect.files[0] == null) {
@@ -18,17 +21,38 @@ fileSelect.addEventListener('change', async () => {
   
   // const channelData = channelsToSharedArrayBuffers(decoded);
   const channelData = Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i).buffer)
-  startPlayingAudio(channelData);
+  const initialPlaybackSpeed = playbackSpeedSlider.value
+
+  startPlayingAudio(channelData, parseFloatWithFallback(initialPlaybackSpeed, 1));
 });
 
-async function startPlayingAudio(channelData: Array<ArrayBuffer>) {
+playbackSpeedSlider.addEventListener('change', () => {
+  if (player === undefined) {
+    return;
+  }
+  const hopefullyFloat = Number.parseFloat(playbackSpeedSlider.value);
+  if (Number.isNaN(hopefullyFloat)) {
+    console.error("Invalid data in input slider: ", playbackSpeedSlider.value);
+    return;
+  }
+
+  player.port.postMessage({
+    tag: 'PlaybackSpeedChanged', newSpeed: hopefullyFloat,
+  } satisfies PlaybackProcessorMessage);
+});
+
+async function startPlayingAudio(channelData: Array<ArrayBuffer>, initialPlaybackSpeed: number) {
   await cxt.audioWorklet.addModule('dist/PlaybackProcessor.js');
 
-  const player = new AudioWorkletNode(cxt, 'playback-processor', {
+  player = new AudioWorkletNode(cxt, 'playback-processor', {
     channelCount: channelData.length,
     outputChannelCount: [ channelData.length ]
   });
   player.connect(cxt.destination);
+
+  player.port.postMessage({
+    tag: 'PlaybackSpeedChanged', newSpeed: initialPlaybackSpeed,
+  } satisfies PlaybackProcessorMessage);
 
   player.port.postMessage(
     {
@@ -53,6 +77,16 @@ function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
       resolve(reader.result);
     }
   });
+}
+
+function parseFloatWithFallback(input: string, fallback: number): number {
+  const hopefullyFloat = Number.parseFloat(input);
+
+  if (Number.isNaN(hopefullyFloat)) {
+    return fallback;
+  }
+
+  return hopefullyFloat;
 }
 
 export default {}

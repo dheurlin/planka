@@ -1,5 +1,6 @@
 class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
   private wasmPlaybackProcesor: WasmPlaybackProcessor | null = null;
+  private playbackSpeed = 1;
 
   constructor() {
     super();
@@ -11,9 +12,11 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
           console.log(ev.data);
           self.wasmPlaybackProcesor = await WasmPlaybackProcessor.instantiate(ev.data.wasmModule, ev.data.channels);
         break;
+
+        case "PlaybackSpeedChanged":
+          self.playbackSpeed = ev.data.newSpeed;
       }
     };
-
   }
 
   process(_inputs: Float32Array[][], outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
@@ -23,16 +26,19 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
 
     // Assuming a single output
     const output = outputs[0]!;
-    return this.wasmPlaybackProcesor.process(output);
+    return this.wasmPlaybackProcesor.process(output, this.playbackSpeed);
   }
 }
 
 export type PlaybackProcessorMessage =
-  ({
+  | {
     tag: 'DataReady';
     channels: Array<ArrayBuffer>;
     wasmModule: WebAssembly.Module;
-  })
+  } | {
+    tag: 'PlaybackSpeedChanged',
+    newSpeed: number,
+  };
 
 registerProcessor('playback-processor', PlaybackProcessor);
 
@@ -74,10 +80,16 @@ class WasmPlaybackProcessor {
     return new WasmPlaybackProcessor(instance, audioData);
   }
 
-  public process(outputChannels: Array<Float32Array>): boolean {
+  public process(outputChannels: Array<Float32Array>, playbackSpeed: number): boolean {
     const PlaybackProcessor_process = this.instance.exports.PlaybackProcessor_process as Function;
 
-    const res = PlaybackProcessor_process(this.wasmObjPtr, this.outputChannelsWasmPtr, this.audioData.length, FRAME_SIZE);
+    const res = PlaybackProcessor_process(
+      this.wasmObjPtr,
+      this.outputChannelsWasmPtr,
+      this.audioData.length,
+      FRAME_SIZE,
+      playbackSpeed,
+    );
     
     // Copy out...
     for (const [i, outputChannel] of outputChannels.entries()) {

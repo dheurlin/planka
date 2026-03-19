@@ -32,8 +32,6 @@ template <typename T> struct span2d {
 #define s(n) (std::to_string((n)))
 #define p(n) (std::to_string(reinterpret_cast<uintptr_t>((n))))
 
-float playback_speed = 1.5;
-
 class PlaybackProcessor {
 public:
   PlaybackProcessor(unsigned sample_rate, float* inputs, int num_channels, int channel_length)
@@ -49,7 +47,7 @@ public:
     console::log("Channel 1 length: " + s(m_input_channels.cols));
   }
 
-  bool process(float *output_channels_ptr, unsigned num_channels, unsigned output_channel_length) {
+  bool process(float *output_channels_ptr, unsigned num_channels, unsigned output_channel_length, float playback_speed) {
     if (m_buffer_index >= get_input_channel_length()) {
       std::memset(output_channels_ptr, 0, output_channel_length * num_channels * sizeof(*output_channels_ptr));
       return true;
@@ -87,6 +85,6 @@ PlaybackProcessor* PlaybackProcessor_init(unsigned sample_rate, float* inputs, i
 }
 
 WASM_EXPORT(PlaybackProcessor_process)
-bool PlaybackProcessor_process(PlaybackProcessor *self, float *output_channels, int num_channels, int channel_length) {
-  return self->process(output_channels, num_channels, channel_length);
+bool PlaybackProcessor_process(PlaybackProcessor *self, float *output_channels, int num_channels, int channel_length, float playback_speed) {
+  return self->process(output_channels, num_channels, channel_length, playback_speed);
 }
