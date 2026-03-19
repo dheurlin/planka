@@ -9,7 +9,7 @@
 WASM_IMPORT void _console_log(const char *str);
 
 struct console {
-  static void log(std::string str) {
+  static void log(const std::string& str) {
     _console_log(str.c_str());
   }
 };
