@@ -32,6 +32,8 @@ template <typename T> struct span2d {
 #define s(n) (std::to_string((n)))
 #define p(n) (std::to_string(reinterpret_cast<uintptr_t>((n))))
 
+float playback_speed = 1.5;
+
 class PlaybackProcessor {
 public:
   PlaybackProcessor(unsigned sample_rate, float* inputs, int num_channels, int channel_length)
@@ -54,15 +56,17 @@ public:
     }
 
     span2d<float> output_channels(output_channels_ptr, num_channels, output_channel_length);
+    size_t curr_src_index = m_buffer_index;
 
     // TODO min of output channels and input channels?
     for (unsigned channel_index = 0; channel_index < num_channels; channel_index++) {
       for (unsigned sample_index = 0; sample_index < output_channel_length; sample_index++) {
-        output_channels[channel_index][sample_index] = m_input_channels[channel_index][m_buffer_index + sample_index];
+        curr_src_index = m_buffer_index + sample_index * playback_speed;
+        output_channels[channel_index][sample_index] = m_input_channels[channel_index][curr_src_index];
       }
     }
 
-    m_buffer_index += output_channel_length;
+    m_buffer_index = curr_src_index;
     return true;
   }
 
