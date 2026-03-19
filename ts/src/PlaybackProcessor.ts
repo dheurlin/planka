@@ -64,7 +64,7 @@ class WasmPlaybackProcessor {
     const channelLen = (audioData[0]?.byteLength ?? 0) / SIZEOF_FLOAT;
 
     const PlaybackProcessor_Init = instance.exports.PlaybackProcessor_init as Function;
-    this.wasmObjPtr = PlaybackProcessor_Init(audioDataWasmPtr, audioData.length, channelLen);
+    this.wasmObjPtr = PlaybackProcessor_Init(sampleRate, audioDataWasmPtr, audioData.length, channelLen);
 
     this.outputChannelsWasmPtr = this.malloc(audioData.length * FRAME_SIZE * SIZEOF_FLOAT);
   }

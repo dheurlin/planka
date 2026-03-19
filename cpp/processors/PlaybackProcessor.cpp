@@ -17,7 +17,7 @@ void console_log(std::string str) {
 
 class PlaybackProcessor {
 public:
-  PlaybackProcessor(float* inputs, int num_channels, int channel_length) {
+  PlaybackProcessor(unsigned sample_rate, float* inputs, int num_channels, int channel_length): m_sample_rate(sample_rate) {
     for (int channel_ix = 0; channel_ix < num_channels; channel_ix++) {
       float *start = &inputs[channel_ix * channel_length];
       m_input_channels.emplace_back(start, start + channel_length);
@@ -51,6 +51,7 @@ public:
 private:
   std::vector<std::vector<float>> m_input_channels;
   size_t m_buffer_index = 0;
+  unsigned m_sample_rate = 0;
 
   size_t get_input_channel_length() {
     return m_input_channels[0].size();
@@ -58,9 +59,9 @@ private:
 };
 
 WASM_EXPORT(PlaybackProcessor_init)
-PlaybackProcessor* PlaybackProcessor_init(float* inputs, int num_channels, int channel_length) {
+PlaybackProcessor* PlaybackProcessor_init(unsigned sample_rate, float* inputs, int num_channels, int channel_length) {
   // We only expect there to be one instance, so should be fine memory-wise??
-  return new PlaybackProcessor(inputs, num_channels, channel_length);
+  return new PlaybackProcessor(sample_rate, inputs, num_channels, channel_length);
 }
 
 WASM_EXPORT(PlaybackProcessor_process)
