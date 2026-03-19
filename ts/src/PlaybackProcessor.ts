@@ -9,9 +9,8 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
     this.port.onmessage = async function (this, ev: MessageEvent<PlaybackProcessorMessage>) {
       switch (ev.data.tag) {
         case 'DataReady':
-          console.log(ev.data);
           self.wasmPlaybackProcesor = await WasmPlaybackProcessor.instantiate(ev.data.wasmModule, ev.data.channels);
-        break;
+          break;
 
         case "PlaybackSpeedChanged":
           self.playbackSpeed = ev.data.newSpeed;

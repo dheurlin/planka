@@ -1,5 +1,4 @@
 import type { PlaybackProcessorMessage } from './PlaybackProcessor.js';
-import { assertFunction, assertMemory, notImplementedFuncs } from './wasm-helpers.js';
 
 declare const fileSelect: HTMLInputElement;
 declare const playbackSpeedSlider: HTMLInputElement;
@@ -17,9 +16,7 @@ fileSelect.addEventListener('change', async () => {
   const decoded = await cxt.decodeAudioData(buff);
   // Ensure we use a sample rate that corresponds to the chosen file
   cxt = new AudioContext({ sampleRate: decoded.sampleRate });
-  console.log(cxt);
-  
-  // const channelData = channelsToSharedArrayBuffers(decoded);
+
   const channelData = Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i).buffer)
   const initialPlaybackSpeed = playbackSpeedSlider.value
 
