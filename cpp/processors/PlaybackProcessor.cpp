@@ -8,9 +8,11 @@
 
 WASM_IMPORT void _console_log(const char *str);
 
-void console_log(std::string str) {
-  _console_log(str.c_str());
-}
+struct console {
+  static void log(std::string str) {
+    _console_log(str.c_str());
+  }
+};
 
 #define s(n) (std::to_string((n)))
 #define p(n) (std::to_string(reinterpret_cast<uintptr_t>((n))))
@@ -23,12 +25,13 @@ public:
       m_input_channels.emplace_back(start, start + channel_length);
     }
 
-    console_log("PlaybackProcessor initialised!");
-    console_log("Start pointer: " + p(inputs));
-    console_log("Channelzzz: " + s(m_input_channels.size()));
-    console_log("Input channel length: " + s(channel_length));
-    console_log("Channel 0 length: " + s(m_input_channels[0].size()));
-    console_log("Channel 1 length: " + s(m_input_channels[1].size()));
+    console::log("PlaybackProcessor initialised!");
+    console::log("Start pointer: " + p(inputs));
+    console::log("Channelzzz: " + s(m_input_channels.size()));
+    console::log("Sample rate: " + s(m_sample_rate));
+    console::log("Input channel length: " + s(channel_length));
+    console::log("Channel 0 length: " + s(m_input_channels[0].size()));
+    console::log("Channel 1 length: " + s(m_input_channels[1].size()));
   }
 
   bool process(float *output_channels, unsigned num_channels, unsigned output_channel_length) {
