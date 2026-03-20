@@ -1,5 +1,8 @@
+.DEFAULT_GOAL := all
 # NOTE: wasi-libc++ and wasi-libc++abi must be installed separately
 OUTDIR=../dist/wasm
+PROCESSORS_OUTDIR=$(OUTDIR)/processors
+
 CC_FLAGS=\
 				 -std=c++20 \
 				 -fno-exceptions \
@@ -11,8 +14,6 @@ CC_FLAGS=\
 				 -stdlib=libc++\
 				 -Iinclude\
 
-
-# LD_FLAGS=-Wl,--no-entry -Wl,--strip-all
 LD_FLAGS=\
 				 --no-entry \
 				 --import-undefined \
@@ -22,23 +23,16 @@ LD_FLAGS=\
 				 -lc \
 				 -export="malloc"\
 
-test.o: test.cpp
+%.o: %.cpp
 	clang++ $(CC_FLAGS) -c -o $@ $^
 
-$(OUTDIR)/test.wasm: test.o
-	mkdir -p $(OUTDIR)
-	# clang++ $(CC_FLAGS) $(LD_FLAGS) -o $@ $^ -v
-	wasm-ld $< -o $@ $(LD_FLAGS)
+$(PROCESSORS_OUTDIR)/%.wasm: processors/%.o wasm_helpers.o
+	mkdir -p $(PROCESSORS_OUTDIR)
+	wasm-ld $^ -o $@ $(LD_FLAGS)
 
-processors/PlaybackProcessor.o: processors/PlaybackProcessor.cpp
-	clang++ $(CC_FLAGS) -c -o $@ $^
+PROCESSORS_SRC=$(wildcard processors/*.cpp)
+PROCESSORS_WASM=$(OUTDIR)/$(PROCESSORS_SRC:.cpp=.wasm)
 
-$(OUTDIR)/processors/PlaybackProcessor.wasm: processors/PlaybackProcessor.o
-	mkdir -p $(OUTDIR)/processors/
-	# clang++ $(CC_FLAGS) $(LD_FLAGS) -o $@ $^ -v
-	wasm-ld $< -o $@ $(LD_FLAGS)
+all: $(PROCESSORS_WASM)
 
-test: $(OUTDIR)/test.wasm
-playback: $(OUTDIR)/processors/PlaybackProcessor.wasm
-
-.PHONY: test
+.PHONY: all

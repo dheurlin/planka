@@ -1,19 +1,9 @@
 #include <cstddef>
-#include <cstdint>
 #include <cstring>
 #include <span>
 #include <string>
 
 #include "wasm_helpers.h"
-
-WASM_IMPORT void _console_log(const char *str);
-
-// TODO maybe namespace instead
-struct console {
-  static void log(const std::string& str) {
-    _console_log(str.c_str());
-  }
-};
 
 template <typename T> struct span2d {
   T* data;
@@ -28,9 +18,6 @@ template <typename T> struct span2d {
     return rows;
   }
 };
-
-#define s(n) (std::to_string((n)))
-#define p(n) (std::to_string(reinterpret_cast<uintptr_t>((n))))
 
 class PlaybackProcessor {
 public:
