@@ -1,23 +1,9 @@
 #include <cstddef>
 #include <cstring>
-#include <span>
 #include <string>
 
 #include "wasm_helpers.h"
-
-template <typename T> struct span2d {
-  T* data;
-  size_t rows;
-  size_t cols;
-
-  std::span<T> operator[](size_t row) const {
-    return std::span<T>(data + row * cols, cols);
-  }
-
-  size_t count() const {
-    return rows;
-  }
-};
+#include "utils.h"
 
 class PlaybackProcessor {
 public:
@@ -30,8 +16,8 @@ public:
     console::log("Channelzzz: " + s(m_src_channels.count()));
     console::log("Sample rate: " + s(m_sample_rate));
     console::log("Input channel length: " + s(channel_length));
-    console::log("Channel 0 length: " + s(m_src_channels.cols));
-    console::log("Channel 1 length: " + s(m_src_channels.cols));
+    console::log("Channel 0 length: " + s(m_src_channels.cols()));
+    console::log("Channel 1 length: " + s(m_src_channels.cols()));
   }
 
   bool process(float *output_channels_ptr, unsigned num_channels, unsigned output_channel_length, float playback_speed) {
@@ -40,7 +26,7 @@ public:
       return true;
     }
 
-    span2d<float> output_channels(output_channels_ptr, num_channels, output_channel_length);
+    utils::span2d<float> output_channels(output_channels_ptr, num_channels, output_channel_length);
     size_t curr_src_index = m_src_index;
 
     // TODO min of output channels and input channels?
@@ -58,10 +44,10 @@ public:
 private:
   size_t m_src_index = 0;
   unsigned m_sample_rate = 0;
-  span2d<float> m_src_channels;
+  utils::span2d<float> m_src_channels;
 
   size_t get_input_channel_length() {
-    return m_src_channels.cols;
+    return m_src_channels.cols();
   }
 };
 
