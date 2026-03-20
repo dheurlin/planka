@@ -1,3 +1,5 @@
+import { wasmImportObject } from './wasm-helpers.js';
+
 class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
   private wasmPlaybackProcesor: WasmPlaybackProcessor | null = null;
   private playbackSpeed = 1;
@@ -41,17 +43,6 @@ export type PlaybackProcessorMessage =
 
 registerProcessor('playback-processor', PlaybackProcessor);
 
-const wasmImportObject = (getInstance: () => WebAssembly.Instance): WebAssembly.Imports => ({
-  env: {
-    _console_log: (ptr: number) => {
-      console.log(
-        "[PlaybackProcessor.wasm] " +
-        charsToString(ptr, (getInstance().exports.memory as WebAssembly.Memory).buffer));
-    }
-  },
-  wasi_snapshot_preview1: notImplementedFuncs(['fd_close', 'fd_seek', 'fd_write']),
-});
-
 const SIZEOF_FLOAT = 4;
 const FRAME_SIZE = 128;
 
@@ -75,7 +66,7 @@ class WasmPlaybackProcessor {
   }
 
   static async instantiate(module: WebAssembly.Module, audioData: Array<ArrayBuffer>): Promise<WasmPlaybackProcessor> {
-    const instance: WebAssembly.Instance = await WebAssembly.instantiate(module, wasmImportObject(() => instance) );
+    const instance: WebAssembly.Instance = await WebAssembly.instantiate(module, wasmImportObject("PlaybackProcessor", () => instance) );
     return new WasmPlaybackProcessor(instance, audioData);
   }
 
@@ -122,24 +113,3 @@ class WasmPlaybackProcessor {
     return audioDataWasmPtr;
   }
 }
-
-
-// WASM stuff. TODO: Configure build so we can import this shit
-
-function notImplementedFuncs(names: Array<string>): Record<string, Function> {
-  return Object.fromEntries(names.map((name) => [
-    name, function () { throw new Error(`Function ${name} not implemented!`) }
-  ]))
-}
-
-function charsToString(basePtr: number, mem: ArrayBuffer): string {
-  let str = "";
-  let memAsArr = new Uint8Array(mem);
-  for (let i = basePtr; memAsArr[i] !== 0; i++) {
-    str += String.fromCharCode(memAsArr[i]!);
-  }
-
-  return str;
-}
-
-
