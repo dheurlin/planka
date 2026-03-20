@@ -36,45 +36,45 @@ class PlaybackProcessor {
 public:
   PlaybackProcessor(unsigned sample_rate, float* inputs, int num_channels, int channel_length)
     : m_sample_rate(sample_rate)
-    , m_input_channels(inputs, num_channels, channel_length) {
+    , m_src_channels(inputs, num_channels, channel_length) {
 
     console::log("PlaybackProcessor initialised!");
     console::log("Start pointer: " + p(inputs));
-    console::log("Channelzzz: " + s(m_input_channels.count()));
+    console::log("Channelzzz: " + s(m_src_channels.count()));
     console::log("Sample rate: " + s(m_sample_rate));
     console::log("Input channel length: " + s(channel_length));
-    console::log("Channel 0 length: " + s(m_input_channels.cols));
-    console::log("Channel 1 length: " + s(m_input_channels.cols));
+    console::log("Channel 0 length: " + s(m_src_channels.cols));
+    console::log("Channel 1 length: " + s(m_src_channels.cols));
   }
 
   bool process(float *output_channels_ptr, unsigned num_channels, unsigned output_channel_length, float playback_speed) {
-    if (m_buffer_index >= get_input_channel_length()) {
+    if (m_src_index >= get_input_channel_length()) {
       std::memset(output_channels_ptr, 0, output_channel_length * num_channels * sizeof(*output_channels_ptr));
       return true;
     }
 
     span2d<float> output_channels(output_channels_ptr, num_channels, output_channel_length);
-    size_t curr_src_index = m_buffer_index;
+    size_t curr_src_index = m_src_index;
 
     // TODO min of output channels and input channels?
     for (unsigned channel_index = 0; channel_index < num_channels; channel_index++) {
       for (unsigned sample_index = 0; sample_index < output_channel_length; sample_index++) {
-        curr_src_index = m_buffer_index + sample_index * playback_speed;
-        output_channels[channel_index][sample_index] = m_input_channels[channel_index][curr_src_index];
+        curr_src_index = m_src_index + sample_index * playback_speed;
+        output_channels[channel_index][sample_index] = m_src_channels[channel_index][curr_src_index];
       }
     }
 
-    m_buffer_index = curr_src_index;
+    m_src_index = curr_src_index;
     return true;
   }
 
 private:
-  size_t m_buffer_index = 0;
+  size_t m_src_index = 0;
   unsigned m_sample_rate = 0;
-  span2d<float> m_input_channels;
+  span2d<float> m_src_channels;
 
   size_t get_input_channel_length() {
-    return m_input_channels.cols;
+    return m_src_channels.cols;
   }
 };
 
