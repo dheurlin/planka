@@ -9,6 +9,10 @@
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
     "target": "esnext",
+    "moduleResolution": "bundler",
+    "paths": {
+      "wasm": [ "./src/typedecls/wasm/wasm.d.ts"]
+    },
     // "types": [],
     // For nodejs:
     // "lib": ["dom", "esnext"],

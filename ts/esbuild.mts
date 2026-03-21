@@ -1,9 +1,16 @@
 import * as esbuild from 'esbuild';
 
 const options: esbuild.BuildOptions = {
-  entryPoints: ['src/main.ts', 'src/PlaybackProcessor.ts'],
+  entryPoints: [
+    'src/main.ts',
+    'src/PlaybackProcessor.ts',
+  ],
+  loader: { '.wasm': 'binary' },
+  alias: {
+    'wasm': '../cpp/build/wasm',
+  },
   bundle: true,
-  // outbase: '../dist'
+  outbase: 'src',
   outdir: '../dist',
 }
 

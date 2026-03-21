@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := all
 # NOTE: wasi-libc++ and wasi-libc++abi must be installed separately
-OUTDIR=../dist/wasm
+OUTDIR=./build/wasm
 PROCESSORS_OUTDIR=$(OUTDIR)/processors
 
 CC_FLAGS=\
