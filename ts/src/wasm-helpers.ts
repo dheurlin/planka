@@ -5,6 +5,11 @@ export function wasmImportObject(moduleName: string, getInstance: () => WebAssem
         console.log(
           `[${moduleName}.wasm] ` +
           charsToString(ptr, (getInstance().exports.memory as WebAssembly.Memory).buffer));
+      },
+      _console_error: (ptr: number) => {
+        console.error(
+          `[${moduleName}.wasm] ` +
+          charsToString(ptr, (getInstance().exports.memory as WebAssembly.Memory).buffer));
       }
     },
     wasi_snapshot_preview1: notImplementedFuncs(['fd_close', 'fd_seek', 'fd_write']),

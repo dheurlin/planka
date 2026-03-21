@@ -6,9 +6,11 @@
 #define WASM_IMPORT extern "C" // TODO Does it have to be done like this?
 
 WASM_IMPORT void _console_log(const char *str);
+WASM_IMPORT void _console_error(const char *str);
 
 namespace console {
   void log(const std::string& str);
+  void error(const std::string& str);
 };
 
 // Helpers for printing, in the absense of proper formatting
