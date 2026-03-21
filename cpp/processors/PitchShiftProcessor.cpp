@@ -2,7 +2,6 @@
 #include <cstring>
 #include <string>
 
-#include "vendor/simple_fft/fft_settings.h"
 #include "vendor/simple_fft/fft.h"
 
 #include "wasm_helpers.h"
@@ -13,12 +12,8 @@ const unsigned FRAME_SIZE = 128;
 
 class PitchShiftProcessor {
 public:
-  PitchShiftProcessor(): m_frame_count(0), m_fft_error(new char[512])
-    {
-
+  PitchShiftProcessor(): m_frame_count(0), m_fft_error(new char[512]) {
     console::log("PitchShiftProcessor initialised!");
-    console::error("Error test!");
-
   }
 
   bool process(
