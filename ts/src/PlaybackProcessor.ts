@@ -26,7 +26,7 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
       return true;
     }
 
-    // Assuming a single output
+    // Assuming a single input and output
     const output = outputs[0]!;
     return this.wasmPlaybackProcesor.process(output, this.playbackSpeed);
   }
@@ -81,7 +81,6 @@ class WasmPlaybackProcessor {
       this.wasmObjPtr,
       this.outputChannelsWasmPtr,
       this.audioData.length,
-      FRAME_SIZE,
       playbackSpeed,
     );
     

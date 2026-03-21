@@ -5,6 +5,10 @@
 #include "wasm_helpers.h"
 #include "utils.h"
 
+// This is defined by JavaScript's AudioWorklet API, so we should be able
+// to assume that all input and output channels have this length
+const unsigned FRAME_SIZE = 128;
+
 class PlaybackProcessor {
 public:
   PlaybackProcessor(unsigned sample_rate, float* inputs, int num_channels, int channel_length)
@@ -20,18 +24,18 @@ public:
     console::log("Channel 1 length: " + s(m_src_channels.cols()));
   }
 
-  bool process(float *output_channels_ptr, unsigned num_channels, unsigned output_channel_length, float playback_speed) {
+  bool process(float *output_channels_ptr, unsigned num_channels, float playback_speed) {
     if (m_src_index >= get_input_channel_length()) {
-      std::memset(output_channels_ptr, 0, output_channel_length * num_channels * sizeof(*output_channels_ptr));
+      std::memset(output_channels_ptr, 0, FRAME_SIZE * num_channels * sizeof(*output_channels_ptr));
       return true;
     }
 
-    utils::span2d<float> output_channels(output_channels_ptr, num_channels, output_channel_length);
+    utils::span2d<float> output_channels(output_channels_ptr, num_channels, FRAME_SIZE);
     size_t curr_src_index = m_src_index;
 
     // TODO min of output channels and input channels?
     for (unsigned channel_index = 0; channel_index < num_channels; channel_index++) {
-      for (unsigned sample_index = 0; sample_index < output_channel_length; sample_index++) {
+      for (unsigned sample_index = 0; sample_index < FRAME_SIZE; sample_index++) {
         curr_src_index = m_src_index + sample_index * playback_speed;
         output_channels[channel_index][sample_index] = m_src_channels[channel_index][curr_src_index];
       }
@@ -58,6 +62,6 @@ PlaybackProcessor* PlaybackProcessor_init(unsigned sample_rate, float* inputs, i
 }
 
 WASM_EXPORT(PlaybackProcessor_process)
-bool PlaybackProcessor_process(PlaybackProcessor *self, float *output_channels, int num_channels, int channel_length, float playback_speed) {
-  return self->process(output_channels, num_channels, channel_length, playback_speed);
+bool PlaybackProcessor_process(PlaybackProcessor *self, float *output_channels, int num_channels, float playback_speed) {
+  return self->process(output_channels, num_channels, playback_speed);
 }
