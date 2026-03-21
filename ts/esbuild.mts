@@ -4,6 +4,7 @@ const options: esbuild.BuildOptions = {
   entryPoints: [
     'src/main.ts',
     'src/PlaybackProcessor.ts',
+    'src/PitchShiftProcessor.ts',
   ],
   loader: { '.wasm': 'binary' },
   alias: {

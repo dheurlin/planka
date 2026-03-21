@@ -39,13 +39,17 @@ playbackSpeedSlider.addEventListener('change', () => {
 });
 
 async function startPlayingAudio(channelData: Array<ArrayBuffer>, initialPlaybackSpeed: number) {
-  await cxt.audioWorklet.addModule('dist/PlaybackProcessor.js');
+  await Promise.all(['PlaybackProcessor', 'PitchShiftProcessor'].map((name) => {
+    return cxt.audioWorklet.addModule(`dist/${name}.js`);
+  }));
 
   player = new AudioWorkletNode(cxt, 'playback-processor', {
     channelCount: channelData.length,
     outputChannelCount: [ channelData.length ]
   });
-  player.connect(cxt.destination);
+  const pitchShifter = new AudioWorkletNode(cxt, 'pitch-shift-processor');
+
+  player.connect(pitchShifter).connect(cxt.destination);
 
   player.port.postMessage({
     tag: 'PlaybackSpeedChanged', newSpeed: initialPlaybackSpeed,
