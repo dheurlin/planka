@@ -55,7 +55,6 @@ async function startPlayingAudio(channelData: Array<ArrayBuffer>, initialPlaybac
     {
       tag: 'DataReady',
       channels: channelData,
-      // wasmModule: await WebAssembly.compileStreaming(fetch('dist/wasm/processors/PlaybackProcessor.wasm')) ,
     } satisfies PlaybackProcessorMessage,
     channelData,
   );

@@ -1,5 +1,5 @@
 import { wasmImportObject } from './wasm-helpers';
-import WasmModuleString from 'wasm/processors/PlaybackProcessor.wasm';
+import WasmBinary from 'wasm/processors/PlaybackProcessor.wasm';
 
 class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
   private wasmPlaybackProcesor: WasmPlaybackProcessor | null = null;
@@ -12,7 +12,7 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
     this.port.onmessage = async function (this, ev: MessageEvent<PlaybackProcessorMessage>) {
       switch (ev.data.tag) {
         case 'DataReady':
-          self.wasmPlaybackProcesor = await WasmPlaybackProcessor.instantiate(ev.data.channels);
+          self.wasmPlaybackProcesor = await WasmPlaybackProcessor.instantiate(WasmBinary, ev.data.channels);
           break;
 
         case "PlaybackSpeedChanged":
@@ -36,7 +36,6 @@ export type PlaybackProcessorMessage =
   | {
     tag: 'DataReady';
     channels: Array<ArrayBuffer>;
-    // wasmModule: WebAssembly.Module;
   } | {
     tag: 'PlaybackSpeedChanged',
     newSpeed: number,
@@ -66,9 +65,9 @@ class WasmPlaybackProcessor {
     this.outputChannelsWasmPtr = this.malloc(audioData.length * FRAME_SIZE * SIZEOF_FLOAT);
   }
 
-  static async instantiate(audioData: Array<ArrayBuffer>): Promise<WasmPlaybackProcessor> {
+  static async instantiate(wasmBinary: Uint8Array, audioData: Array<ArrayBuffer>): Promise<WasmPlaybackProcessor> {
     const { instance } = await WebAssembly.instantiate(
-      WasmModuleString,
+      wasmBinary,
       wasmImportObject("PlaybackProcessor", () => instance),
     ) as unknown as WebAssembly.WebAssemblyInstantiatedSource; // Type declarations seem to be wrong here?
 
