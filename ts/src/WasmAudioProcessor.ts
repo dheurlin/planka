@@ -58,8 +58,8 @@ export abstract class WasmAudioProcessor {
       return { 
         inputNumChannels,
         outputNumChannels,
+        inputChannelsWasmPtr: this.inputChannelsWasmPtr,
         outputChannelsWasmPtr: this.outputChannelsWasmPtr,
-        inputChannelsWasmPtr: this.outputChannelsWasmPtr,
       };
     } else if (inputNumChannels !== this.inputNumChannels || outputNumChannels !== this.outputNumChannels) {
       throw new Error("Channel count unexpectedly changed, we don't handle this!")
@@ -72,17 +72,17 @@ export abstract class WasmAudioProcessor {
       return { 
         inputNumChannels,
         outputNumChannels,
+        inputChannelsWasmPtr: this.inputChannelsWasmPtr,
         outputChannelsWasmPtr: this.outputChannelsWasmPtr,
-        inputChannelsWasmPtr: this.outputChannelsWasmPtr,
       };
     }
 
     throw new Error("IMPOSSIBLE!");
   }
 
-  protected copyInputchannelsToWasm(inputChannels: Array<Float32Array>) {
+  protected copyInputChannelsToWasm(inputChannels: Array<Float32Array>) {
     if (this.inputChannelsWasmPtr === undefined) {
-      throw new Error("outputChannelsWasmPtr was unexpectedly undefined!");
+      throw new Error("inputChannelsWasmPtr was unexpectedly undefined!");
     }
 
     const target = new Float32Array(this.memory.buffer, this.inputChannelsWasmPtr);
