@@ -1,5 +1,6 @@
 import { wasmImportObject } from './wasm-helpers';
 import WasmBinary from 'wasm/processors/PlaybackProcessor.wasm';
+import { WasmAudioProcessor } from './WasmAudioProcessor';
 
 class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
   private wasmPlaybackProcesor: WasmPlaybackProcessor | null = null;
@@ -21,14 +22,14 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
     };
   }
 
-  process(_inputs: Float32Array[][], outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
+  process(inputs: Float32Array[][], outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
     if (this.wasmPlaybackProcesor == null) {
       return true;
     }
 
-    // Assuming a single input and output
+    const input = inputs[0]!;
     const output = outputs[0]!;
-    return this.wasmPlaybackProcesor.process(output, this.playbackSpeed);
+    return this.wasmPlaybackProcesor.process(input, output, this.playbackSpeed);
   }
 }
 
@@ -44,25 +45,20 @@ export type PlaybackProcessorMessage =
 registerProcessor('playback-processor', PlaybackProcessor);
 
 const SIZEOF_FLOAT = 4;
-const FRAME_SIZE = 128;
 
-class WasmPlaybackProcessor {
-  private wasmObjPtr: number;
-  private outputChannelsWasmPtr: number;
-  private memory: WebAssembly.Memory;
+class WasmPlaybackProcessor extends WasmAudioProcessor {
+  protected override wasmObjPtr: number;
 
   private constructor(
-    private readonly instance: WebAssembly.Instance,
-    private readonly audioData: Array<ArrayBuffer>,
+    instance: WebAssembly.Instance,
+    audioData: Array<ArrayBuffer>,
   ) {
-    this.memory = this.instance.exports.memory as WebAssembly.Memory;
+    super("PlaybackProcessor", instance);
+
     const audioDataWasmPtr = this.copyAudioDataToWasmMemory(audioData);
     const channelLen = (audioData[0]?.byteLength ?? 0) / SIZEOF_FLOAT;
 
-    const PlaybackProcessor_Init = instance.exports.PlaybackProcessor_init as Function;
-    this.wasmObjPtr = PlaybackProcessor_Init(sampleRate, audioDataWasmPtr, audioData.length, channelLen);
-
-    this.outputChannelsWasmPtr = this.malloc(audioData.length * FRAME_SIZE * SIZEOF_FLOAT);
+    this.wasmObjPtr = this.wasmInitFunc(sampleRate, audioDataWasmPtr, audioData.length, channelLen);
   }
 
   static async instantiate(wasmBinary: Uint8Array, audioData: Array<ArrayBuffer>): Promise<WasmPlaybackProcessor> {
@@ -74,32 +70,21 @@ class WasmPlaybackProcessor {
     return new WasmPlaybackProcessor(instance, audioData);
   }
 
-  public process(outputChannels: Array<Float32Array>, playbackSpeed: number): boolean {
-    const PlaybackProcessor_process = this.instance.exports.PlaybackProcessor_process as Function;
+  public process(inputChannels: Array<Float32Array>, outputChannels: Array<Float32Array>, playbackSpeed: number): boolean {
+    const { inputChannelsWasmPtr, inputNumChannels, outputChannelsWasmPtr, outputNumChannels } = this.getAudioBuffers(inputChannels.length, outputChannels.length);
 
-    const res = PlaybackProcessor_process(
+    const res = this.wasmProcessFunc(
       this.wasmObjPtr,
-      this.outputChannelsWasmPtr,
-      this.audioData.length,
+      inputChannelsWasmPtr,
+      inputNumChannels,
+      outputChannelsWasmPtr,
+      outputNumChannels,
       playbackSpeed,
     );
-    
-    // Copy out...
-    for (const [i, outputChannel] of outputChannels.entries()) {
-      const srcPtr = this.outputChannelsWasmPtr + i * FRAME_SIZE * SIZEOF_FLOAT;
-      outputChannel.set(new Float32Array(this.memory.buffer, srcPtr, FRAME_SIZE));
-    }
+
+    this.copyOutputsChannelsFromWasm(outputChannels);
 
     return res;
-  }
-
-  private malloc(numBytes: number): number {
-    const malloc = this.instance.exports.malloc as (sizeInBytes: number) => number;
-    const mallocRes = malloc(numBytes);
-    if (mallocRes == 0) {
-      throw new RangeError("Failed to allocate WASM memory");
-    }
-    return mallocRes;
   }
 
   private copyAudioDataToWasmMemory(audioData: Array<ArrayBuffer>): number {

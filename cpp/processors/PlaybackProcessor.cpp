@@ -62,6 +62,16 @@ PlaybackProcessor* PlaybackProcessor_init(unsigned sample_rate, float* inputs, i
 }
 
 WASM_EXPORT(PlaybackProcessor_process)
-bool PlaybackProcessor_process(PlaybackProcessor *self, float *output_channels, int num_channels, float playback_speed) {
-  return self->process(output_channels, num_channels, playback_speed);
+bool PlaybackProcessor_process(
+  PlaybackProcessor *self,
+  float *input_channels,
+  int input_num_channels,
+  float *output_channels,
+  int output_num_channels,
+  float playback_speed
+) {
+  (void)input_channels;
+  (void)input_num_channels;
+
+  return self->process(output_channels, output_num_channels, playback_speed);
 }
