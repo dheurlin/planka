@@ -2,6 +2,7 @@
 # NOTE: wasi-libc++ and wasi-libc++abi must be installed separately
 OUTDIR=./build/wasm
 PROCESSORS_OUTDIR=$(OUTDIR)/processors
+LIBCLANG_RUNTIME=/usr/lib/clang/21/lib/wasi/libclang_rt.builtins-wasm32.a
 
 CC_FLAGS=\
 				 -std=c++20 \
@@ -13,6 +14,7 @@ CC_FLAGS=\
 				 --sysroot=/usr/share/wasi-sysroot \
 				 -stdlib=libc++\
 				 -Iinclude\
+				 # /usr/lib/clang/21/lib/wasi/libclang_rt.builtins-wasm32.a\
 
 LD_FLAGS=\
 				 --no-entry \
@@ -24,11 +26,11 @@ LD_FLAGS=\
 				 -export="malloc"\
 
 %.o: %.cpp
-	clang++ $(CC_FLAGS) -c -o $@ $^
+	clang++ $(CC_FLAGS) $^ -c -o $@
 
 $(PROCESSORS_OUTDIR)/%.wasm: processors/%.o wasm_helpers.o
 	mkdir -p $(PROCESSORS_OUTDIR)
-	wasm-ld $^ -o $@ $(LD_FLAGS)
+	wasm-ld $(LIBCLANG_RUNTIME) $^ -o $@ $(LD_FLAGS)
 
 PROCESSORS_SRC=$(wildcard processors/*.cpp)
 PROCESSORS_WASM=$(addprefix $(OUTDIR)/, $(PROCESSORS_SRC:.cpp=.wasm))
