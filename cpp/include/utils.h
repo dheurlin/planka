@@ -1,5 +1,6 @@
 #pragma once
 
+#include <complex>
 #include <cstddef>
 #include <span>
 
@@ -24,6 +25,32 @@ public:
 
   size_t cols() const {
     return m_cols;
+  }
+};
+
+template <typename T> class complexMP {
+private:
+  T m_magnitude;
+  T m_phase;
+
+public:
+  complexMP<T>(std::complex<T> complex): m_magnitude(abs(complex)), m_phase(arg(complex)) {}
+
+  T magnitude() const {
+    return m_magnitude;
+  }
+
+  T phase() const {
+    return m_phase;
+  }
+
+  void set_phase(T new_phase) {
+    m_phase = new_phase;
+  }
+
+  std::complex<T> to_complex() const {
+    auto i = std::complex<T>(0.0, 1.0);
+    return m_magnitude * std::exp(i * m_phase);
   }
 };
 
