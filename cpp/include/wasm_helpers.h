@@ -8,6 +8,9 @@
 WASM_IMPORT void _console_log(const char *str);
 WASM_IMPORT void _console_error(const char *str);
 
+WASM_IMPORT void _browser_assert(const char *, const char *, int, const char *);
+#define browser_assert(x) ((void)((x) || (_browser_assert(#x, __FILE__, __LINE__, __func__),0)))
+
 namespace console {
   void log(const std::string& str);
   void error(const std::string& str);

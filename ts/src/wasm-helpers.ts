@@ -11,6 +11,17 @@ export function wasmImportObject(moduleName: string, getInstance: () => WebAssem
           `[${moduleName}.wasm] ` +
           charsToString(ptr, (getInstance().exports.memory as WebAssembly.Memory).buffer));
       },
+      _browser_assert: (message: number, file: number, line: number, func: number) => {
+        const mem = (getInstance().exports.memory as WebAssembly.Memory).buffer;
+        throw new WasmAssert(
+          [
+            `${charsToString(message, mem)}`,
+            `File: ${charsToString(file, mem)}`,
+            `Line: ${line}`,
+            `Function: ${charsToString(func, mem)}`
+          ].join('\n'),
+        )
+      },
       ...notImplementedFuncs([
         // Inshallah this will not be called
         '__mulsc3',
@@ -22,6 +33,13 @@ export function wasmImportObject(moduleName: string, getInstance: () => WebAssem
       'fd_write',
     ]),
   });
+}
+
+class WasmAssert extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WasmAssert";
+  }
 }
 
 export function notImplementedFuncs(names: Array<string>): Record<string, Function> {
