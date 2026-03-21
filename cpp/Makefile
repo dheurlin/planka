@@ -31,7 +31,7 @@ $(PROCESSORS_OUTDIR)/%.wasm: processors/%.o wasm_helpers.o
 	wasm-ld $^ -o $@ $(LD_FLAGS)
 
 PROCESSORS_SRC=$(wildcard processors/*.cpp)
-PROCESSORS_WASM=$(OUTDIR)/$(PROCESSORS_SRC:.cpp=.wasm)
+PROCESSORS_WASM=$(addprefix $(OUTDIR)/, $(PROCESSORS_SRC:.cpp=.wasm))
 
 all: $(PROCESSORS_WASM)
 
