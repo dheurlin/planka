@@ -25,7 +25,7 @@ class WasmPitchShiftProcessor extends WasmAudioProcessor {
 
   private constructor(instance: WebAssembly.Instance) {
     super("PitchShiftProcessor", instance);
-    this.wasmObjPtr = this.wasmInitFunc();
+    this.wasmObjPtr = this.wasmInitFunc(sampleRate);
   }
 
   static async instantiate(wasmBinary: Uint8Array): Promise<WasmPitchShiftProcessor> {
