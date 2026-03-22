@@ -31,6 +31,11 @@ export function wasmImportObject(moduleName: string, getInstance: () => WebAssem
       'fd_close',
       'fd_seek',
       'fd_write',
+      'fd_read',
+      'fd_fdstat_get',
+      'fd_prestat_get',
+      'fd_prestat_dir_name',
+      'proc_exit',
     ]),
   });
 }

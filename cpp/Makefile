@@ -2,7 +2,10 @@
 # NOTE: wasi-libc++ and wasi-libc++abi must be installed separately
 OUTDIR=./build/wasm
 PROCESSORS_OUTDIR=$(OUTDIR)/processors
-LIBCLANG_RUNTIME=/usr/lib/clang/21/lib/wasi/libclang_rt.builtins-wasm32.a
+# LIBCLANG_RUNTIME=/usr/lib/clang/21/lib/wasi/libclang_rt.builtins-wasm32.a
+LIBCLANG_RUNTIME=/usr/lib/clang/22/lib/wasm32-unknown-wasi/libclang_rt.builtins.a 
+CPP_DEPS=./vendor/StftPitchShift/StftPitchShift.cpp
+CPP_DEPS_O=$(CPP_DEPS:.cpp=.o)
 
 CC_FLAGS=\
 				 -std=c++20 \
@@ -14,6 +17,7 @@ CC_FLAGS=\
 				 --sysroot=/usr/share/wasi-sysroot \
 				 -stdlib=libc++\
 				 -Iinclude\
+				 -Ivendor\
 				 # /usr/lib/clang/21/lib/wasi/libclang_rt.builtins-wasm32.a\
 
 LD_FLAGS=\
@@ -28,9 +32,10 @@ LD_FLAGS=\
 %.o: %.cpp
 	clang++ $(CC_FLAGS) $^ -c -o $@
 
-$(PROCESSORS_OUTDIR)/%.wasm: processors/%.o wasm_helpers.o
+$(PROCESSORS_OUTDIR)/%.wasm: processors/%.o wasm_helpers.o $(CPP_DEPS_O)
 	mkdir -p $(PROCESSORS_OUTDIR)
 	wasm-ld $(LIBCLANG_RUNTIME) $^ -o $@ $(LD_FLAGS)
+	# wasm-ld $^ -o $@ $(LD_FLAGS)
 
 PROCESSORS_SRC=$(wildcard processors/*.cpp)
 PROCESSORS_WASM=$(addprefix $(OUTDIR)/, $(PROCESSORS_SRC:.cpp=.wasm))
