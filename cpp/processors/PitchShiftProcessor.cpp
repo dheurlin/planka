@@ -1,33 +1,27 @@
 #include <cstddef>
 #include <cstring>
 #include <string>
-
-#include "vendor/pitchshiftercpp/phasevocoder.hpp"
+#include <vector>
 
 #include "wasm_helpers.h"
-#include "SimpleFFTAdapter.h"
 
 // This is defined by JavaScript's AudioWorklet API, so we should be able
 // to assume that all input and output frames have this length
 const size_t FRAME_SIZE = 128;
+constexpr size_t WINDOW_SIZE = 512;
+const size_t FRAMES_PER_WINDOW = WINDOW_SIZE / FRAME_SIZE;
 
-constexpr float MAX_SHIFT_FACTOR = 1.5;
-const unsigned PV_OVERLAP_FACTOR = 4;
 
-// const float PITCH_SHIFT_FACTOR = 1.5;
-const float PITCH_SHIFT_FACTOR = 1;
-
-using pv_t = pv::PhaseVocoder<FRAME_SIZE,
-    static_cast<uint32_t>(FRAME_SIZE * MAX_SHIFT_FACTOR),
-    SimpleFFTAdapter, float>;
-
+enum class WindowStatus {
+  READY,
+  NOT_READY,
+};
 
 class PitchShiftProcessor {
 public:
   PitchShiftProcessor(unsigned sample_rate):
     m_frame_count(0),
-    m_sample_rate(sample_rate),
-    m_fft_adapter(new SimpleFFTAdapter(FRAME_SIZE)) {
+    m_sample_rate(sample_rate) {
     console::log("PitchShiftProcessor initialised!");
     console::log("Sample rate: " + s(sample_rate));
   }
@@ -40,42 +34,52 @@ public:
   ) {
     (void) output_num_channels;
     (void) input_num_channels;
-    ensure_vocoders_initialized(input_num_channels);
-
-    for (unsigned channel = 0; channel < input_num_channels; channel++) {
-      m_vocoders[channel].process(
-        &input_channels[channel * FRAME_SIZE],
-        &output_channels[channel * FRAME_SIZE],
-        FRAME_SIZE,
-        PITCH_SHIFT_FACTOR
-      );
+    if (shift_in_input(input_channels, input_num_channels) == WindowStatus::NOT_READY) {
+      console::log("Not ready, writing zeros...");
+      std::memset(output_channels, 0, FRAME_SIZE * input_num_channels * sizeof(float));
+      return true;
     }
 
-    m_frame_count++;
+    for (unsigned channel = 0; channel < input_num_channels; channel++) {
+      auto input_start = m_input_windows[channel].data();
+      std::memcpy(&output_channels[channel * FRAME_SIZE], input_start, FRAME_SIZE * sizeof(float));
+    }
     return true;
   }
 
 private:
   unsigned m_frame_count;
   unsigned m_sample_rate;
-  std::vector<pv_t> m_vocoders;
-  std::unique_ptr<SimpleFFTAdapter> m_fft_adapter;
+  std::vector<std::array<float, WINDOW_SIZE>> m_input_windows;
 
-  void ensure_vocoders_initialized(unsigned num_channels) {
-    auto existing_channels = m_vocoders.size();
-    if (existing_channels > 0) {
-      if (existing_channels != num_channels) {
-        console::error("Vocoders already initialised with " + s(m_vocoders.size()) + " channels");
-        browser_assert(false && "Vocoder error");
-      } else {
-        // All good, nothing to do
-        return;
+  WindowStatus shift_in_input(float *input_channels, size_t num_channels) {
+    auto num_existing_windows = m_input_windows.size();
+    if (num_existing_windows == 0) {
+      for (size_t i = 0; i < num_channels; i++) {
+        m_input_windows.push_back({0});
       }
+      console::log("Input windows initialised with " + s(num_channels) + " channels");
     }
-    for (unsigned i = 0; i < num_channels; i++) {
-      m_vocoders.emplace_back(*m_fft_adapter, PV_OVERLAP_FACTOR);
+    if (num_existing_windows > 0 && num_existing_windows != num_channels) {
+      console::error("Input windows already initialised with " + s(num_existing_windows) + " channels");
+      browser_assert(false && "Window error");
     }
-    console::log("Vocoders initialised!");
+
+    for (size_t i = 0; i < m_input_windows.size(); i++) {
+      auto win_start = m_input_windows[i].data();
+      std::memmove(win_start, &win_start[FRAME_SIZE], (WINDOW_SIZE - FRAME_SIZE) * sizeof(float));
+      std::memcpy(&win_start[WINDOW_SIZE - FRAME_SIZE], input_channels, FRAME_SIZE * sizeof(float));
+    }
+
+    m_frame_count++;
+
+    if (m_frame_count == FRAMES_PER_WINDOW) {
+      console::log("Window ready!");
+    }
+    if (m_frame_count >= FRAMES_PER_WINDOW) {
+      return WindowStatus::READY;
+    }
+    return WindowStatus::NOT_READY;
   }
 };
 
