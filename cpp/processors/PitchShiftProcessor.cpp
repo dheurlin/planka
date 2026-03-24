@@ -57,8 +57,7 @@ public:
       // Shift input buffer
       std::copy(
         channel_stuff.input_buffer.begin(),
-        // channel_stuff.input_buffer.begin() + (WINDOW_SIZE - FRAME_SIZE), // TODO end?
-        channel_stuff.input_buffer.end(), // TODO end?
+        channel_stuff.input_buffer.end(),
         channel_stuff.input_buffer.begin() + FRAME_SIZE
       );
 
@@ -78,7 +77,6 @@ public:
           channel_stuff.input_buffer.end(),
           channel_stuff.output_buffer.begin()
         );
-        // console::log("Copied input to output");
       } else {
         // Shift the output
         std::copy_backward(
@@ -86,7 +84,6 @@ public:
           channel_stuff.output_buffer.end() - FRAME_SIZE,
           channel_stuff.output_buffer.begin() + WINDOW_SIZE
         );
-        // console::log("Shifted output");
       }
 
       // Copy one frame of the output buffer to the output
