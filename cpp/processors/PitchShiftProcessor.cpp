@@ -33,11 +33,8 @@ const float PITCH_SHIFT_FACTOR = 1.2;
 struct ChannelStuff {
   std::vector<double> output_buffer;
   std::vector<double> input_buffer;
-  // TODO Example uses shared_ptr, why?
-  // std::unique_ptr<stftpitchshift::StftPitchShiftCore<double>> core;
-  // std::unique_ptr<stftpitchshift::STFT<double>> stft;
-  std::shared_ptr<stftpitchshift::StftPitchShiftCore<double>> core;
-  std::shared_ptr<stftpitchshift::STFT<double>> stft;
+  std::unique_ptr<stftpitchshift::StftPitchShiftCore<double>> core;
+  std::unique_ptr<stftpitchshift::STFT<double>> stft;
 };
 
 class PitchShiftProcessor {
@@ -55,7 +52,6 @@ public:
   ) {
     ensure_channels_initialised(input.count());
     for (unsigned channel = 0; channel < input.count(); channel++) {
-    // for (unsigned channel = 0; channel < 1; channel++) {
       auto &channel_stuff = m_channels_stuff[channel];
       // Shift input buffer
       std::copy(
@@ -128,10 +124,10 @@ private:
       ChannelStuff channel = {
         .output_buffer = std::vector<double>(total_buffer_size),
         .input_buffer = std::vector<double>(total_buffer_size),
-        .core = std::make_shared<stftpitchshift::StftPitchShiftCore<double>>(stft_framesize, hopsize, m_sample_rate),
-        .stft = std::make_shared<stftpitchshift::STFT<double>>(stft_framesize, hopsize)
+        .core = std::make_unique<stftpitchshift::StftPitchShiftCore<double>>(stft_framesize, hopsize, m_sample_rate),
+        .stft = std::make_unique<stftpitchshift::STFT<double>>(stft_framesize, hopsize)
       };
-      m_channels_stuff.push_back(channel);
+      m_channels_stuff.push_back(std::move(channel));
     }
     console::log(s(m_channels_stuff.size()) + " channels initialised");
     browser_assert(m_channels_stuff.size() == num_channels && "Channel number missmatch!");
