@@ -13,7 +13,7 @@
 // to assume that all input and output frames have this length
 const size_t FRAME_SIZE = 128;
 // How much we feed STFT every time
-constexpr size_t WINDOW_SIZE = 2048;
+constexpr size_t WINDOW_SIZE = 4096;
 const size_t FRAMES_PER_WINDOW = WINDOW_SIZE / FRAME_SIZE;
 
 const size_t overlap = 32;
@@ -25,7 +25,7 @@ const size_t total_buffer_size =
   std::get<1>(stft_framesize);
 
 
-const float PITCH_SHIFT_FACTOR = 1;
+const float PITCH_SHIFT_FACTOR = 1.2;
 
 // enum class WindowStatus {
 //   READY,
@@ -100,12 +100,11 @@ public:
       } else {
         // Shift the output
         // console::log("Just shiftin' output");
-        std::copy(
-          channel_stuff.output_buffer.begin() + FRAME_SIZE,
-          // channel_stuff.output_buffer.begin() + WINDOW_SIZE,
-          channel_stuff.output_buffer.end(),
-          channel_stuff.output_buffer.begin()
-        );
+        // std::copy(
+        //   channel_stuff.output_buffer.begin() + FRAME_SIZE,
+        //   channel_stuff.output_buffer.end(),
+        //   channel_stuff.output_buffer.begin()
+        // );
       }
 
       // console::log("Just copying' output");
@@ -122,6 +121,11 @@ public:
         output[channel].begin(),
         [](double value) { return static_cast<float>(value); }
       );
+        std::copy(
+          channel_stuff.output_buffer.begin() + FRAME_SIZE,
+          channel_stuff.output_buffer.end(),
+          channel_stuff.output_buffer.begin()
+        );
       // Kanske inte asviktigt?
       // std::fill(
       //   channel_stuff.output_buffer.end() - FRAME_SIZE,
