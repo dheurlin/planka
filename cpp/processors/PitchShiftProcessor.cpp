@@ -17,7 +17,16 @@ const size_t FRAME_SIZE = 128;
 constexpr size_t WINDOW_SIZE = 2048;
 const size_t FRAMES_PER_WINDOW = WINDOW_SIZE / FRAME_SIZE;
 
-const size_t overlap = 4;
+const size_t overlap = 32;
+
+const std::tuple<size_t, size_t> framesize = { WINDOW_SIZE, WINDOW_SIZE };
+const size_t hopsize = std::get<1>(framesize) / overlap;
+const size_t total_buffer_size =
+  std::get<0>(framesize) +
+  std::get<1>(framesize);
+
+
+const float PITCH_SHIFT_FACTOR = 1;
 
 // enum class WindowStatus {
 //   READY,
@@ -28,8 +37,10 @@ struct ChannelStuff {
   std::vector<double> output_buffer;
   std::vector<double> input_buffer;
   // TODO Example uses shared_ptr, why?
-  std::unique_ptr<stftpitchshift::StftPitchShiftCore<double>> core;
-  std::unique_ptr<stftpitchshift::STFT<double>> stft;
+  // std::unique_ptr<stftpitchshift::StftPitchShiftCore<double>> core;
+  // std::unique_ptr<stftpitchshift::STFT<double>> stft;
+  std::shared_ptr<stftpitchshift::StftPitchShiftCore<double>> core;
+  std::shared_ptr<stftpitchshift::STFT<double>> stft;
 };
 
 class PitchShiftProcessor {
@@ -39,12 +50,6 @@ public:
     m_sample_rate(sample_rate) {
     console::log("PitchShiftProcessor initialised!");
     console::log("Sample rate: " + s(sample_rate));
-
-    const std::tuple<size_t, size_t> framesize = { WINDOW_SIZE, WINDOW_SIZE };
-    const size_t hopsize = std::get<1>(framesize) / overlap;
-
-    stftpitchshift::STFT<double> stft(framesize, hopsize);
-    stftpitchshift::StftPitchShiftCore<double> core(framesize, hopsize, m_sample_rate);
   }
 
   bool process(
@@ -55,44 +60,76 @@ public:
     for (unsigned channel = 0; channel < input.count(); channel++) {
       auto &channel_stuff = m_channels_stuff[channel];
       // Shift input buffer
+      console::log("Just shiftin' input");
+      // std::copy(
+      //   channel_stuff.input_buffer.begin(),
+      //   channel_stuff.input_buffer.begin() + WINDOW_SIZE - FRAME_SIZE,
+      //   channel_stuff.input_buffer.begin() + FRAME_SIZE
+      // );
       std::copy(
-        channel_stuff.input_buffer.begin(),
-        channel_stuff.input_buffer.end(),
-        channel_stuff.input_buffer.begin() + FRAME_SIZE
+        channel_stuff.input_buffer.begin() + FRAME_SIZE,
+        channel_stuff.input_buffer.begin() + WINDOW_SIZE,
+        channel_stuff.input_buffer.begin()
       );
 
       // Copy in new samples
+      console::log("Just copying' input");
       std::transform(
         input[channel].begin(),
         input[channel].end(),
-        channel_stuff.input_buffer.begin(),
+        channel_stuff.input_buffer.begin() + (WINDOW_SIZE - FRAME_SIZE),
         [](float value) { return static_cast<double>(value); }
       );
 
-      if (m_frame_count % FRAMES_PER_WINDOW == 0) {
+      if (m_frame_count % FRAMES_PER_WINDOW == 1) {
+        channel_stuff.core->factors({ PITCH_SHIFT_FACTOR });
+        channel_stuff.core->quefrency(0 * 1e-3);
+        channel_stuff.core->distortion(1);
+        channel_stuff.core->normalization(false);
+
+        console::log("Before pitch shift");
+        (*channel_stuff.stft)(channel_stuff.input_buffer, channel_stuff.output_buffer, [&](std::span<std::complex<double>> dft) {
+          console::log("DFT size: " + s(dft.size()));
+          channel_stuff.core->shiftpitch(dft);
+        });
+        console::log("After pitch shift");
         // TODO do the pitch shift :)
         // For now, just copy the input to the output
-        std::copy(
-          channel_stuff.input_buffer.begin(),
-          channel_stuff.input_buffer.end(),
-          channel_stuff.output_buffer.begin()
-        );
+        // std::copy(
+        //   channel_stuff.input_buffer.begin(),
+        //   channel_stuff.input_buffer.begin() + WINDOW_SIZE,
+        //   channel_stuff.output_buffer.begin()
+        // );
       } else {
         // Shift the output
-        std::copy_backward(
-          channel_stuff.output_buffer.begin(),
-          channel_stuff.output_buffer.end() - FRAME_SIZE,
-          channel_stuff.output_buffer.begin() + WINDOW_SIZE
+        console::log("Just shiftin' output");
+        std::copy(
+          channel_stuff.output_buffer.begin() + FRAME_SIZE,
+          channel_stuff.output_buffer.begin() + WINDOW_SIZE,
+          channel_stuff.output_buffer.begin()
         );
+        // std::copy_backward(
+        //   channel_stuff.output_buffer.begin(),
+        //   channel_stuff.output_buffer.begin() + (WINDOW_SIZE - FRAME_SIZE),
+        //   channel_stuff.output_buffer.begin() + WINDOW_SIZE
+        // );
       }
 
+      console::log("Just copying' output");
       // Copy one frame of the output buffer to the output
+      // std::transform(
+      //   channel_stuff.output_buffer.begin() + (WINDOW_SIZE - FRAME_SIZE),
+      //   channel_stuff.output_buffer.begin() + WINDOW_SIZE,
+      //   output[channel].begin(),
+      //   [](double value) { return static_cast<float>(value); }
+      // );
       std::transform(
-        channel_stuff.output_buffer.end() - FRAME_SIZE,
-        channel_stuff.output_buffer.end(),
+        channel_stuff.output_buffer.begin(),
+        channel_stuff.output_buffer.begin() + FRAME_SIZE,
         output[channel].begin(),
         [](double value) { return static_cast<float>(value); }
       );
+      console::log("Copied output!");
     }
     m_frame_count++;
     return true;
@@ -114,17 +151,17 @@ private:
       return;
     }
 
-    const std::tuple<size_t, size_t> framesize = { WINDOW_SIZE, WINDOW_SIZE };
-    const size_t hopsize = std::get<1>(framesize) / overlap;
-
     for (size_t i = 0; i < num_channels; i++) {
       ChannelStuff channel = {
-        .output_buffer = std::vector<double>(WINDOW_SIZE),
-        .input_buffer = std::vector<double>(WINDOW_SIZE),
-        .core = std::make_unique<stftpitchshift::StftPitchShiftCore<double>>(framesize, hopsize, m_sample_rate),
-        .stft = std::make_unique<stftpitchshift::STFT<double>>(framesize, hopsize)
+        // .output_buffer = std::vector<double>(WINDOW_SIZE),
+        // .input_buffer = std::vector<double>(WINDOW_SIZE),
+        .output_buffer = std::vector<double>(total_buffer_size),
+        .input_buffer = std::vector<double>(total_buffer_size),
+        .core = std::make_shared<stftpitchshift::StftPitchShiftCore<double>>(framesize, hopsize, m_sample_rate),
+        .stft = std::make_shared<stftpitchshift::STFT<double>>(framesize, hopsize)
       };
-      m_channels_stuff.push_back(std::move(channel));
+      // m_channels_stuff.push_back(std::move(channel));
+      m_channels_stuff.push_back((channel));
     }
     console::log(s(m_channels_stuff.size()) + " channels initialised");
     browser_assert(m_channels_stuff.size() == num_channels && "Channel number missmatch!");
