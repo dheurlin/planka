@@ -12,7 +12,7 @@ CC_FLAGS=\
 				 -fno-exceptions \
 				 -Wall \
 				 -Wextra \
-				 -O2 \
+				 -O3 \
 				 --target=wasm32-wasi \
 				 --sysroot=/usr/share/wasi-sysroot \
 				 -stdlib=libc++\
