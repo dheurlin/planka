@@ -60,7 +60,6 @@ public:
       // Shift input buffer
       std::copy(
         channel_stuff.input_buffer.begin() + FRAME_SIZE,
-        // channel_stuff.input_buffer.begin() + WINDOW_SIZE,
         channel_stuff.input_buffer.end(),
         channel_stuff.input_buffer.begin()
       );
@@ -69,7 +68,7 @@ public:
       std::transform(
         input[channel].begin(),
         input[channel].end(),
-        channel_stuff.input_buffer.begin() + (total_buffer_size - FRAME_SIZE),
+        channel_stuff.input_buffer.end() - FRAME_SIZE,
         [](float value) { return static_cast<double>(value); }
       );
 
@@ -82,12 +81,6 @@ public:
       }
 
       // Copy one frame of the output buffer to the output
-      std::transform(
-        channel_stuff.output_buffer.begin(),
-        channel_stuff.output_buffer.begin() + FRAME_SIZE,
-        output[channel].begin(),
-        [](double value) { return static_cast<float>(value); }
-      );
       std::transform(
         channel_stuff.output_buffer.begin(),
         channel_stuff.output_buffer.begin() + FRAME_SIZE,
