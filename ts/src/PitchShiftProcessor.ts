@@ -4,10 +4,28 @@ import { WasmAudioProcessor } from "./WasmAudioProcessor";
 
 class PitchShiftProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
   private wasmPitchShiftProcessor: WasmPitchShiftProcessor | null = null;
+  private playbackSpeed = 1;
+  private pitchShiftFactor = 1;
 
   constructor() {
     super();
     WasmPitchShiftProcessor.instantiate(WasmBinary).then((p) => this.wasmPitchShiftProcessor = p);
+
+    const self = this;
+    this.port.onmessage = function (this, ev: MessageEvent<PitchShiftProcessorMessage>) {
+      switch (ev.data.tag) {
+        case 'PlaybackSpeedChanged':
+          self.playbackSpeed = ev.data.newSpeed;
+          break;
+
+        case 'PitchShiftFactorChanged':
+          self.pitchShiftFactor = ev.data.newPitchShiftFactor;
+          break;
+
+        default:
+          throw new TypeError('IMPOSSIBLE');
+      }
+    };
   }
 
   process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
@@ -15,13 +33,18 @@ class PitchShiftProcessor extends AudioWorkletProcessor implements AudioWorkletP
       return true;
     }
 
-    // TODO Get from port
-    const targetPitchShiftFactor = 1;
-    const playbackSpeed = 1;
-
-    return this.wasmPitchShiftProcessor.process(inputs[0]!, outputs[0]!, targetPitchShiftFactor, playbackSpeed);
+    return this.wasmPitchShiftProcessor.process(inputs[0]!, outputs[0]!, this.pitchShiftFactor, this.playbackSpeed);
   }
 }
+
+export type PitchShiftProcessorMessage = 
+  | {
+    tag: 'PlaybackSpeedChanged',
+    newSpeed: number,
+  } | {
+    tag: 'PitchShiftFactorChanged',
+    newPitchShiftFactor: number,
+  }
 
 registerProcessor('pitch-shift-processor', PitchShiftProcessor);
 

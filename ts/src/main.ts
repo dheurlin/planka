@@ -1,10 +1,13 @@
 import type { PlaybackProcessorMessage } from './PlaybackProcessor';
+import type { PitchShiftProcessorMessage } from './PitchShiftProcessor';
 
 declare const fileSelect: HTMLInputElement;
 declare const playbackSpeedSlider: HTMLInputElement;
+declare const pitchShiftFactorSlider: HTMLInputElement;
 
 let cxt = new AudioContext();
 let player: AudioWorkletNode | undefined;
+let pitchShifter: AudioWorkletNode | undefined;
 
 fileSelect.addEventListener('change', async () => {
   if (fileSelect.files == null || fileSelect.files[0] == null) {
@@ -18,9 +21,14 @@ fileSelect.addEventListener('change', async () => {
   cxt = new AudioContext({ sampleRate: decoded.sampleRate });
 
   const channelData = Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i).buffer)
-  const initialPlaybackSpeed = playbackSpeedSlider.value
+  const initialPlaybackSpeed = playbackSpeedSlider.value;
+  const initialPitchShiftFactor = pitchShiftFactorSlider.value;
 
-  startPlayingAudio(channelData, parseFloatWithFallback(initialPlaybackSpeed, 1));
+  startPlayingAudio(
+    channelData,
+    parseFloatWithFallback(initialPlaybackSpeed, 1),
+    parseFloatWithFallback(initialPitchShiftFactor, 1),
+  );
 });
 
 playbackSpeedSlider.addEventListener('change', () => {
@@ -36,9 +44,40 @@ playbackSpeedSlider.addEventListener('change', () => {
   player.port.postMessage({
     tag: 'PlaybackSpeedChanged', newSpeed: hopefullyFloat,
   } satisfies PlaybackProcessorMessage);
+
+  if (pitchShifter === undefined) {
+    console.error("pitchShifter was undefined!");
+    return;
+  }
+  pitchShifter.port.postMessage({
+    tag: 'PlaybackSpeedChanged',
+    newSpeed: hopefullyFloat,
+  } satisfies PitchShiftProcessorMessage);
 });
 
-async function startPlayingAudio(channelData: Array<ArrayBuffer>, initialPlaybackSpeed: number) {
+pitchShiftFactorSlider.addEventListener('change', () => {
+  console.log("LKJDFLKJDF");
+  if (pitchShifter === undefined) {
+    console.error("pitchShifter was undefined!");
+    return;
+  }
+  const hopefullyFloat = Number.parseFloat(pitchShiftFactorSlider.value);
+  if (Number.isNaN(hopefullyFloat)) {
+    console.error("Invalid data in input slider: ", playbackSpeedSlider.value);
+    return;
+  }
+
+  pitchShifter.port.postMessage({
+    tag: 'PitchShiftFactorChanged',
+    newPitchShiftFactor: hopefullyFloat,
+  } satisfies PitchShiftProcessorMessage);
+});
+
+async function startPlayingAudio(
+  channelData: Array<ArrayBuffer>,
+  initialPlaybackSpeed: number,
+  initialPitchShiftFactor: number,
+) {
   await Promise.all(['PlaybackProcessor', 'PitchShiftProcessor'].map((name) => {
     return cxt.audioWorklet.addModule(`dist/${name}.js`);
   }));
@@ -47,7 +86,7 @@ async function startPlayingAudio(channelData: Array<ArrayBuffer>, initialPlaybac
     channelCount: channelData.length,
     outputChannelCount: [ channelData.length ]
   });
-  const pitchShifter = new AudioWorkletNode(cxt, 'pitch-shift-processor');
+  pitchShifter = new AudioWorkletNode(cxt, 'pitch-shift-processor');
 
   player.connect(pitchShifter).connect(cxt.destination);
 
@@ -62,6 +101,14 @@ async function startPlayingAudio(channelData: Array<ArrayBuffer>, initialPlaybac
     } satisfies PlaybackProcessorMessage,
     channelData,
   );
+
+  pitchShifter.port.postMessage({
+    tag: 'PlaybackSpeedChanged', newSpeed: initialPlaybackSpeed,
+  } satisfies PitchShiftProcessorMessage);
+
+  pitchShifter.port.postMessage({
+    tag: 'PitchShiftFactorChanged', newPitchShiftFactor: initialPitchShiftFactor,
+  } satisfies PitchShiftProcessorMessage);
 
   cxt.resume();
 }
