@@ -28,8 +28,6 @@ const size_t total_buffer_size =
   std::get<1>(stft_framesize);
 
 
-const float PITCH_SHIFT_FACTOR = 1.2;
-
 struct ChannelStuff {
   std::vector<double> output_buffer;
   std::vector<double> input_buffer;
@@ -48,9 +46,15 @@ public:
 
   bool process(
     utils::span2d<float> input,
-    utils::span2d<float> output
+    utils::span2d<float> output,
+    float target_pitch_shift_factor,
+    float playback_speed
   ) {
     ensure_channels_initialised(input.count());
+
+    // Compensate for the effects of playback speed
+    auto effective_pitch_shift_factor = target_pitch_shift_factor / playback_speed;
+
     for (unsigned channel = 0; channel < input.count(); channel++) {
       auto &channel_stuff = m_channels_stuff[channel];
       // Shift input buffer
@@ -70,7 +74,7 @@ public:
       );
 
       if (m_frame_count % FRAMES_PER_WINDOW == 1) {
-        channel_stuff.core->factors({ PITCH_SHIFT_FACTOR });
+        channel_stuff.core->factors({ effective_pitch_shift_factor });
 
         (*channel_stuff.stft)(channel_stuff.input_buffer, channel_stuff.output_buffer, [&](std::span<std::complex<double>> dft) {
           channel_stuff.core->shiftpitch(dft);
@@ -146,9 +150,11 @@ bool PitchShiftProcessor_process(
   float *input_channels,
   unsigned input_num_channels,
   float *output_channels,
-  unsigned output_num_channels
+  unsigned output_num_channels,
+  float target_pitch_shift_factor,
+  float playback_speed
 ) {
   utils::span2d<float> input(input_channels, input_num_channels, FRAME_SIZE);
   utils::span2d<float> output(output_channels, output_num_channels, FRAME_SIZE);
-  return self->process(input, output);
+  return self->process(input, output, target_pitch_shift_factor, playback_speed);
 }
