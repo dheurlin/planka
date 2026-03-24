@@ -1,7 +1,4 @@
-#include <cstddef>
-#include <cstring>
 #include <optional>
-#include <string>
 #include <vector>
 
 #include "wasm_helpers.h"
