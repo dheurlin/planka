@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -50,13 +51,13 @@ public:
     float target_pitch_shift_factor,
     float playback_speed
   ) {
-    ensure_channels_initialised(input.count());
+    auto &channels_stuff = get_or_initialise_channels(input.count());
 
     // Compensate for the effects of playback speed
     auto effective_pitch_shift_factor = target_pitch_shift_factor / playback_speed;
 
     for (unsigned channel = 0; channel < input.count(); channel++) {
-      auto &channel_stuff = m_channels_stuff[channel];
+      auto &channel_stuff = channels_stuff[channel];
       // Shift input buffer
       std::copy(
         channel_stuff.input_buffer.begin() + FRAME_SIZE,
@@ -104,18 +105,20 @@ public:
 private:
   unsigned m_frame_count = 0;
   unsigned m_sample_rate;
-  std::vector<ChannelStuff> m_channels_stuff;
+  std::optional<std::vector<ChannelStuff>> m_channels_stuff = std::nullopt;
 
-  void ensure_channels_initialised(size_t num_channels) {
-    auto num_existing_channels = m_channels_stuff.size();
-    if (num_existing_channels > 0) {
+  std::vector<ChannelStuff> &get_or_initialise_channels(size_t num_channels) {
+    if (m_channels_stuff.has_value()) {
+      auto num_existing_channels = m_channels_stuff->size();
       if (num_existing_channels != num_channels) {
         console::error("Channels already initialised with " + s(num_existing_channels) + ", trying to reinitialise with " + s(num_channels));
         browser_assert(false && "Error initialising channels");
       }
       // Already initialised
-      return;
+      return *m_channels_stuff;
     }
+
+    m_channels_stuff = std::vector<ChannelStuff>();
 
     for (size_t i = 0; i < num_channels; i++) {
       ChannelStuff channel = {
@@ -124,10 +127,13 @@ private:
         .core = std::make_unique<stftpitchshift::StftPitchShiftCore<double>>(stft_framesize, hopsize, m_sample_rate),
         .stft = std::make_unique<stftpitchshift::STFT<double>>(stft_framesize, hopsize)
       };
-      m_channels_stuff.push_back(std::move(channel));
+     m_channels_stuff->push_back(std::move(channel));
     }
-    console::log(s(m_channels_stuff.size()) + " channels initialised");
-    browser_assert(m_channels_stuff.size() == num_channels && "Channel number missmatch!");
+
+    console::log(s(m_channels_stuff->size()) + " channels initialised");
+    browser_assert(m_channels_stuff->size() == num_channels && "Channel number missmatch!");
+
+    return *m_channels_stuff;
   }
 };
 
