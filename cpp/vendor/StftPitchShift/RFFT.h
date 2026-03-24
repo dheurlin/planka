@@ -127,7 +127,7 @@ namespace stftpitchshift
 
     void fft(const std::span<const T> frame, const std::span<std::complex<T>> dft)
     {
-      assert(dft.size() == frame.size() / 2 + 1);
+      browser_assert(dft.size() == frame.size() / 2 + 1);
 
       CRFFT<T>& cache = *(getcache(frame.size()).get());
 
@@ -155,7 +155,7 @@ namespace stftpitchshift
 
     void ifft(const std::span<const std::complex<T>> dft, const std::span<T> frame)
     {
-      assert(dft.size() == frame.size() / 2 + 1);
+      browser_assert(dft.size() == frame.size() / 2 + 1);
 
       CRFFT<T>& cache = *(getcache(frame.size()).get());
 

@@ -7,6 +7,8 @@
 #include <span>
 #include <vector>
 
+#include "wasm_helpers.h"
+
 #include <StftPitchShift/FFT.h>
 
 namespace stftpitchshift
@@ -39,7 +41,7 @@ namespace stftpitchshift
 
     void lifter(const std::span<T> envelope)
     {
-      assert(envelope.size() == spectrum.size());
+      browser_assert(envelope.size() == spectrum.size());
 
       for (size_t i = 0; i < envelope.size(); ++i)
       {

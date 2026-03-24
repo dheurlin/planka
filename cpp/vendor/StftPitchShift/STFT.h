@@ -88,45 +88,45 @@ namespace stftpitchshift
     {
       const size_t samples = (std::min)(input.size(), output.size());
 
-      if (chronometry)
-      {
-        struct
-        {
-          Timer<std::chrono::microseconds> analysis;
-          Timer<std::chrono::microseconds> synthesis;
-          Timer<std::chrono::microseconds> callback;
-          Timer<std::chrono::milliseconds> loop;
-        }
-        timers;
+      // if (chronometry)
+      // {
+      //   struct
+      //   {
+      //     Timer<std::chrono::microseconds> analysis;
+      //     Timer<std::chrono::microseconds> synthesis;
+      //     Timer<std::chrono::microseconds> callback;
+      //     Timer<std::chrono::milliseconds> loop;
+      //   }
+      //   timers;
 
-        timers.loop.tic();
-        for (size_t hop = 0; (hop + buffer.size) < samples; hop += hopsize)
-        {
-          const std::span<const T> src = input.subspan(hop, buffer.size);
-          const std::span<T> dst = output.subspan(hop, buffer.size);
+      //   timers.loop.tic();
+      //   for (size_t hop = 0; (hop + buffer.size) < samples; hop += hopsize)
+      //   {
+      //     const std::span<const T> src = input.subspan(hop, buffer.size);
+      //     const std::span<T> dst = output.subspan(hop, buffer.size);
 
-          timers.analysis.tic();
-          reject(src, buffer.time, window.analysis);
-          transform(buffer.time, buffer.freq);
-          timers.analysis.toc();
+      //     timers.analysis.tic();
+      //     reject(src, buffer.time, window.analysis);
+      //     transform(buffer.time, buffer.freq);
+      //     timers.analysis.toc();
 
-          timers.callback.tic();
-          callback(buffer.freq);
-          timers.callback.toc();
+      //     timers.callback.tic();
+      //     callback(buffer.freq);
+      //     timers.callback.toc();
 
-          timers.synthesis.tic();
-          transform(buffer.freq, buffer.time);
-          inject(dst, buffer.time, window.synthesis);
-          timers.synthesis.toc();
-        }
-        timers.loop.toc();
+      //     timers.synthesis.tic();
+      //     transform(buffer.freq, buffer.time);
+      //     inject(dst, buffer.time, window.synthesis);
+      //     timers.synthesis.toc();
+      //   }
+      //   timers.loop.toc();
 
-        std::cout << "analysis  " << timers.analysis.str()  << std::endl;
-        std::cout << "synthesis " << timers.synthesis.str() << std::endl;
-        std::cout << "callback  " << timers.callback.str()  << std::endl;
-        std::cout << "loop      " << timers.loop.str()      << std::endl;
-      }
-      else
+      //   std::cout << "analysis  " << timers.analysis.str()  << std::endl;
+      //   std::cout << "synthesis " << timers.synthesis.str() << std::endl;
+      //   std::cout << "callback  " << timers.callback.str()  << std::endl;
+      //   std::cout << "loop      " << timers.loop.str()      << std::endl;
+      // }
+      // else
       {
         for (size_t hop = 0; (hop + buffer.size) < samples; hop += hopsize)
         {

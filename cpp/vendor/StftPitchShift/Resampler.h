@@ -7,6 +7,8 @@
 #include <span>
 #include <vector>
 
+#include "wasm_helpers.h"
+
 namespace stftpitchshift
 {
   template<class T>
@@ -56,8 +58,8 @@ namespace stftpitchshift
                   const std::span<const T> x1,
                   const std::span<T> y) const
     {
-      assert(x0.size() == y.size());
-      assert(x1.size() == y.size());
+      browser_assert(x0.size() == y.size());
+      browser_assert(x1.size() == y.size());
 
       std::vector<T> y0(x0.size());
       std::vector<T> y1(x1.size());
@@ -75,8 +77,8 @@ namespace stftpitchshift
                   const std::span<const std::complex<T>> x1,
                   const std::span<std::complex<T>> y) const
     {
-      assert(x0.size() == y.size());
-      assert(x1.size() == y.size());
+      browser_assert(x0.size() == y.size());
+      browser_assert(x1.size() == y.size());
 
       std::vector<std::complex<T>> y0(x0.size());
       std::vector<std::complex<T>> y1(x1.size());
@@ -98,7 +100,7 @@ namespace stftpitchshift
     void linear(const std::span<const V> x,
                 const std::span<V> y) const
     {
-      assert(x.size() == y.size());
+      browser_assert(x.size() == y.size());
 
       const ptrdiff_t n = static_cast<ptrdiff_t>(x.size());
       const ptrdiff_t m = static_cast<ptrdiff_t>(n * value);
@@ -128,7 +130,7 @@ namespace stftpitchshift
 
       if (value < 1)
       {
-        assert(m < n);
+        browser_assert(m < n);
 
         for (ptrdiff_t i = 0; i < m; ++i)
         {
@@ -142,7 +144,7 @@ namespace stftpitchshift
       }
       else if (value > 1)
       {
-        assert(m > n);
+        browser_assert(m > n);
 
         for (ptrdiff_t i = n - 1; i >= 0; --i)
         {

@@ -10,6 +10,8 @@
 
 #include <StftPitchShift/Arctangent.h>
 
+#include "wasm_helpers.h"
+
 namespace stftpitchshift
 {
   template<class T>
@@ -55,7 +57,7 @@ namespace stftpitchshift
 
     void encode(const std::span<std::complex<T>> dft)
     {
-      assert(dft.size() == encode_phase_buffer.size());
+      browser_assert(dft.size() == encode_phase_buffer.size());
 
       double frequency,
              phase,
@@ -81,7 +83,7 @@ namespace stftpitchshift
 
     void decode(const std::span<std::complex<T>> dft)
     {
-      assert(dft.size() == decode_phase_buffer.size());
+      browser_assert(dft.size() == decode_phase_buffer.size());
 
       double frequency,
              phase,
