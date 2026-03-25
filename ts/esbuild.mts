@@ -1,3 +1,4 @@
+import ElmPlugin from 'esbuild-plugin-elm';
 import * as esbuild from 'esbuild';
 
 const options: esbuild.BuildOptions = {
@@ -13,6 +14,11 @@ const options: esbuild.BuildOptions = {
   bundle: true,
   outbase: 'src',
   outdir: '../dist',
+  plugins: [
+    ElmPlugin({
+      cwd: '../ui',
+    }),
+  ],
 }
 
 if (process.argv.includes('--watch')) {
