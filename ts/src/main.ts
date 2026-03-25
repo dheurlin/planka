@@ -3,7 +3,6 @@ import { Elm } from './Main.elm';
 import type { PlaybackProcessorMessage } from './PlaybackProcessor';
 import type { PitchShiftProcessorMessage } from './PitchShiftProcessor';
 
-declare const fileSelect: HTMLInputElement;
 declare const playbackSpeedSlider: HTMLInputElement;
 declare const pitchShiftFactorSlider: HTMLInputElement;
 declare const elmApp: HTMLDivElement;
@@ -16,31 +15,31 @@ const ui = Elm.Main!.init({
   node: elmApp,
 });
 
-ui.ports.sendMessage?.subscribe((greeting: string) => {
-  console.log("[Elm]", greeting);
-})
+ui.ports.sendMessage?.subscribe(async (message: any) => {
+  switch (message.tag) {
+    case "SayHello":
+      console.log("[Elm]", message.message);
+      break;
 
-fileSelect.addEventListener('change', async () => {
-  if (fileSelect.files == null || fileSelect.files[0] == null) {
-    console.warn("No files selected...");
-    return;
+    case "FileURLReady": {
+      const buff = await fetch(message.url).then((p) => p.arrayBuffer());
+      const decoded = await cxt.decodeAudioData(buff);
+      // Ensure we use a sample rate that corresponds to the chosen file
+      cxt = new AudioContext({ sampleRate: decoded.sampleRate });
+
+      const channelData = Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i).buffer)
+      const initialPlaybackSpeed = playbackSpeedSlider.value;
+      const initialPitchShiftFactor = pitchShiftFactorSlider.value;
+
+      startPlayingAudio(
+        channelData,
+        parseFloatWithFallback(initialPlaybackSpeed, 1),
+        parseFloatWithFallback(initialPitchShiftFactor, 1),
+      );
+      break;
+    }
   }
-
-  const buff = await fileToArrayBuffer(fileSelect.files[0]);
-  const decoded = await cxt.decodeAudioData(buff);
-  // Ensure we use a sample rate that corresponds to the chosen file
-  cxt = new AudioContext({ sampleRate: decoded.sampleRate });
-
-  const channelData = Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i).buffer)
-  const initialPlaybackSpeed = playbackSpeedSlider.value;
-  const initialPitchShiftFactor = pitchShiftFactorSlider.value;
-
-  startPlayingAudio(
-    channelData,
-    parseFloatWithFallback(initialPlaybackSpeed, 1),
-    parseFloatWithFallback(initialPitchShiftFactor, 1),
-  );
-});
+})
 
 playbackSpeedSlider.addEventListener('change', () => {
   if (player === undefined) {
@@ -122,19 +121,6 @@ async function startPlayingAudio(
   } satisfies PitchShiftProcessorMessage);
 
   cxt.resume();
-}
-
-function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
-  const reader = new FileReader();
-  return new Promise((resolve) => {
-    reader.readAsArrayBuffer(file);
-    reader.onload = () => {
-      if (!(reader.result instanceof ArrayBuffer)) {
-        throw new TypeError(`Reader unexpectedly returned ${typeof reader.result}`);
-      }
-      resolve(reader.result);
-    }
-  });
 }
 
 function parseFloatWithFallback(input: string, fallback: number): number {

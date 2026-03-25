@@ -6,10 +6,11 @@ import Html exposing (div, text, p, button, input)
 import Html.Attributes exposing (style, type_)
 import Html.Events exposing (onClick, on)
 import File exposing (File)
-import File as F
 import Json.Decode as D
+import Json.Encode as E
+import Task
 
-port sendMessage : String -> Cmd msg
+port sendMessage : E.Value -> Cmd msg
 
 main : Program () Model Msg
 main =
@@ -21,7 +22,10 @@ main =
   }
 
 type Model = NotLoaded
-type Msg = SayHello | FileSelected (List File)
+type Msg
+  = SayHello
+  | FileSelected (List File)
+  | FileURLReady (String)
 
 init : () -> ( Model, Cmd Msg )
 init _ = (NotLoaded, Cmd.none)
@@ -29,8 +33,19 @@ init _ = (NotLoaded, Cmd.none)
 update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    SayHello -> (model, sendMessage "Yo from Elm!")
-    FileSelected (f :: []) -> (model, sendMessage (F.name f))
+    SayHello ->
+      ( model
+      , sendMessage <| E.object
+        [ ( "tag", E.string "SayHello" ), ( "message", E.string "Hello from Elm!" ) ]
+      )
+    FileURLReady url ->
+      ( model
+      , sendMessage <| E.object [("tag", E.string "FileURLReady"), ("url", E.string url)]
+      )
+    FileSelected (f :: []) ->
+      ( model
+      , Task.perform FileURLReady <| File.toUrl f
+      )
     FileSelected _ -> (model, Cmd.none)
 
 subscriptions : Model -> Sub Msg
