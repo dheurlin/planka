@@ -34,3 +34,26 @@ declare module 'esbuild-plugin-elm' {
   export const ElmPlugin: (opts: Partial<ElmPluginOpts>) => Plugin;
   export default ElmPlugin;
 }
+
+declare module '*.elm' {
+  export type ElmInitArgs = {
+    node: Node,
+    flags?: unknown,
+  };
+
+  export type ElmInstance = {
+    ports: {
+      [portName: string]: {
+        subscribe: (callback: (...args: any[]) => void) => void,
+        send: (...args: any[]) => void;
+      }
+    };
+  };
+
+  export type Elm = {
+    [moduleName: string]: {
+      init: (args: ElmInitArgs) => ElmInstance;
+    };
+  }
+  export const Elm: Elm;
+}

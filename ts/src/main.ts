@@ -1,3 +1,5 @@
+import { Elm } from './Main.elm';
+
 import type { PlaybackProcessorMessage } from './PlaybackProcessor';
 import type { PitchShiftProcessorMessage } from './PitchShiftProcessor';
 
@@ -6,13 +8,11 @@ declare const playbackSpeedSlider: HTMLInputElement;
 declare const pitchShiftFactorSlider: HTMLInputElement;
 declare const elmApp: HTMLDivElement;
 
-declare const Elm: { Main: { init: (...args: any[]) => any } };
-
 let cxt = new AudioContext();
 let player: AudioWorkletNode | undefined;
 let pitchShifter: AudioWorkletNode | undefined;
 
-const ui = Elm.Main.init({
+const ui = Elm.Main!.init({
   node: elmApp,
 });
 
