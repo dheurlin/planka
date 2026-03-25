@@ -10,7 +10,10 @@ import Json.Decode as D
 import Json.Encode as E
 import Task
 
+import MessageFromUI as MUI
+
 port sendMessage : E.Value -> Cmd msg
+sendFromUI = MUI.send sendMessage
 
 main : Program () Model Msg
 main =
@@ -33,20 +36,13 @@ init _ = (NotLoaded, Cmd.none)
 update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    SayHello ->
-      ( model
-      , sendMessage <| E.object
-        [ ( "tag", E.string "SayHello" ), ( "message", E.string "Hello from Elm!" ) ]
-      )
-    FileURLReady url ->
-      ( model
-      , sendMessage <| E.object [("tag", E.string "FileURLReady"), ("url", E.string url)]
-      )
+    SayHello -> ( model, sendFromUI <| MUI.SayHello "Hello from Elm!" )
     FileSelected (f :: []) ->
       ( model
       , Task.perform FileURLReady <| File.toUrl f
       )
     FileSelected _ -> (model, Cmd.none)
+    FileURLReady url -> ( model, sendFromUI <| MUI.FileURLReady url )
 
 subscriptions : Model -> Sub Msg
 subscriptions _ = Sub.none
