@@ -101,20 +101,42 @@ contentView: Model -> List (Html Msg)
 contentView model = case model of
   FileNotLoaded -> fileSelectView
   FileLoaded { parameters }->
-    [ sliderView "playback-speed" PlaybackSpeedChanged 0.3 2 parameters.playbackSpeed 0.01
-    , sliderView "pitch-shift" PitchShiftFactorChanged 0.3 2 parameters.pitchShiftFactor 0.01
+    [ sliderView
+        { id = "playback-speed"
+        , makeMsg = PlaybackSpeedChanged
+        , minValue = 0.3
+        , maxValue = 2
+        , currentValue = parameters.playbackSpeed
+        , step = 0.01
+        }
+    , sliderView
+        { id = "pitch-shift-factor"
+        , makeMsg = PitchShiftFactorChanged
+        , minValue = 0.3
+        , maxValue = 2
+        , currentValue = parameters.pitchShiftFactor
+        , step = 0.01
+        }
     ]
 
--- TODO named params
-sliderView: String -> (Float -> Msg) -> Float -> Float -> Float -> Float -> Html Msg
-sliderView theId msg minVal maxVal startVal step = input
+type alias SliderViewParams msg =
+  { id: String
+  , makeMsg: (Float -> msg)
+  , minValue: Float
+  , maxValue: Float
+  , currentValue: Float
+  , step: Float
+  }
+
+sliderView: SliderViewParams Msg -> Html Msg
+sliderView params = input
   [ type_ "range"
-  , id theId
-  , attribute "min" (String.fromFloat minVal)
-  , attribute "max" (String.fromFloat maxVal)
-  , value (String.fromFloat startVal)
-  , attribute "step" (String.fromFloat step)
-  , on "change" (D.map msg (D.at ["target", "value"] stringFloatDecoder))
+  , id params.id
+  , attribute "min" (String.fromFloat params.minValue)
+  , attribute "max" (String.fromFloat params.maxValue)
+  , value (String.fromFloat params.currentValue)
+  , attribute "step" (String.fromFloat params.step)
+  , on "change" (D.map params.makeMsg (D.at ["target", "value"] stringFloatDecoder))
   ]
   [ ]
 
