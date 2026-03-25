@@ -2,22 +2,16 @@ port module Main exposing ( main )
 
 import Browser
 import Html exposing (Html)
-import Html exposing (div, text, p, button, input)
+import Html exposing (div, text, p, input)
 import Html.Attributes exposing (style, type_, attribute)
-import Html.Events exposing (onClick, on)
+import Html.Events exposing (on)
 import File exposing (File)
 import Json.Decode as D
-import Json.Encode as E
 import Task
 
-import MessageFromUI as MUI
+import MessageFromUI as FromUI
 import Html.Attributes exposing (value)
 import Html.Attributes exposing (id)
-
-port sendMessage : E.Value -> Cmd msg
-
-sendFromUI : MUI.MessageFromUI -> Cmd msg
-sendFromUI = MUI.send sendMessage
 
 port receiveMessage : (String -> msg) -> Sub msg
 
@@ -43,6 +37,7 @@ type Msg
   = SayHello
   | FileSelected (List File)
   | FileURLReady (String)
+  -- Maybe add Model as first arg here?
   | PitchShiftFactorChanged Float
   | PlaybackSpeedChanged Float
   | FileFinishedLoading
@@ -54,7 +49,7 @@ init _ = (FileNotLoaded, Cmd.none)
 update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    SayHello -> ( model, sendFromUI <| MUI.SayHello "Hello from Elm!" )
+    SayHello -> ( model, FromUI.send <| FromUI.SayHello "Hello from Elm!" )
 
     FileSelected (f :: []) ->
       ( model
@@ -63,14 +58,14 @@ update msg model =
 
     FileSelected _ -> (model, Cmd.none)
 
-    FileURLReady url -> ( model, sendFromUI <| MUI.FileURLReady url )
+    FileURLReady url -> ( model, FromUI.send <| FromUI.FileURLReady url )
 
     -- TODO How to avoid N x M issue here with Msg and Model??
     PitchShiftFactorChanged p -> 
       case model of
         FileLoaded { parameters } ->
           ( FileLoaded { parameters = { parameters | pitchShiftFactor = p  } }
-          , sendFromUI <| MUI.PitchShiftFactorChanged p
+          , FromUI.send <| FromUI.PitchShiftFactorChanged p
           )
         _ -> (model, Cmd.none)
 
@@ -78,7 +73,7 @@ update msg model =
       case model of
         FileLoaded { parameters } -> 
           ( FileLoaded { parameters = { parameters | playbackSpeed = p } }
-          , sendFromUI <| MUI.PlaybackSpeedChanged p
+          , FromUI.send <| FromUI.PlaybackSpeedChanged p
           )
         _ -> (model, Cmd.none)
 

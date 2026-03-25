@@ -1,9 +1,11 @@
-module MessageFromUI exposing (..)
+port module MessageFromUI exposing (..)
 
 import Json.Encode as E
 
-send: (E.Value -> Cmd msg) -> MessageFromUI -> Cmd msg
-send sendValue m = encode m |> sendValue
+port sendMessage : E.Value -> Cmd msg
+
+send: MessageFromUI -> Cmd msg
+send = encode >> sendMessage
 
 type MessageFromUI
   = SayHello String

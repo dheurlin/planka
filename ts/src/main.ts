@@ -16,7 +16,6 @@ const ui = Elm.Main!.init({
 });
 
 ui.ports.sendMessage?.subscribe(async (message: any) => {
-  console.log(message);
   switch (message.tag) {
     case "SayHello":
       console.log("[Elm]", message.message);
@@ -29,14 +28,8 @@ ui.ports.sendMessage?.subscribe(async (message: any) => {
       cxt = new AudioContext({ sampleRate: decoded.sampleRate });
 
       const channelData = Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i).buffer)
-      const initialPlaybackSpeed = playbackSpeedSlider.value;
-      const initialPitchShiftFactor = pitchShiftFactorSlider.value;
 
-      startPlayingAudio(
-        channelData,
-        parseFloatWithFallback(initialPlaybackSpeed, 1),
-        parseFloatWithFallback(initialPitchShiftFactor, 1),
-      );
+      startPlayingAudio(channelData);
       break;
     }
 
@@ -110,8 +103,6 @@ pitchShiftFactorSlider.addEventListener('change', () => {
 
 async function startPlayingAudio(
   channelData: Array<ArrayBuffer>,
-  initialPlaybackSpeed: number,
-  initialPitchShiftFactor: number,
 ) {
   await Promise.all(['PlaybackProcessor', 'PitchShiftProcessor'].map((name) => {
     return cxt.audioWorklet.addModule(`dist/${name}.js`);
@@ -135,16 +126,6 @@ async function startPlayingAudio(
 
   cxt.resume();
   ui.ports.receiveMessage?.send("FileLoaded");
-}
-
-function parseFloatWithFallback(input: string, fallback: number): number {
-  const hopefullyFloat = Number.parseFloat(input);
-
-  if (Number.isNaN(hopefullyFloat)) {
-    return fallback;
-  }
-
-  return hopefullyFloat;
 }
 
 export default {}
