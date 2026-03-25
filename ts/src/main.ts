@@ -16,6 +16,7 @@ const ui = Elm.Main!.init({
 });
 
 ui.ports.sendMessage?.subscribe(async (message: any) => {
+  console.log(message);
   switch (message.tag) {
     case "SayHello":
       console.log("[Elm]", message.message);
@@ -38,6 +39,30 @@ ui.ports.sendMessage?.subscribe(async (message: any) => {
       );
       break;
     }
+
+    case "PlaybackSpeedChanged":
+      player?.port.postMessage({
+        tag: "PlaybackSpeedChanged",
+        newSpeed: message.playbackSpeed,
+      } satisfies PlaybackProcessorMessage);
+
+      pitchShifter?.port.postMessage({
+        tag: "PlaybackSpeedChanged",
+        newSpeed: message.playbackSpeed,
+      } satisfies PitchShiftProcessorMessage);
+
+      break;
+
+    case "PitchShiftFactorChanged":
+      pitchShifter?.port.postMessage({
+        tag: "PitchShiftFactorChanged",
+        newPitchShiftFactor: message.pitchShiftFactor,
+      } satisfies PitchShiftProcessorMessage);
+
+      break;
+
+    default:
+      throw new TypeError(`Unknown message from Elm: ${JSON.stringify(message)}`);
   }
 })
 
@@ -100,10 +125,6 @@ async function startPlayingAudio(
 
   player.connect(pitchShifter).connect(cxt.destination);
 
-  player.port.postMessage({
-    tag: 'PlaybackSpeedChanged', newSpeed: initialPlaybackSpeed,
-  } satisfies PlaybackProcessorMessage);
-
   player.port.postMessage(
     {
       tag: 'DataReady',
@@ -112,15 +133,8 @@ async function startPlayingAudio(
     channelData,
   );
 
-  pitchShifter.port.postMessage({
-    tag: 'PlaybackSpeedChanged', newSpeed: initialPlaybackSpeed,
-  } satisfies PitchShiftProcessorMessage);
-
-  pitchShifter.port.postMessage({
-    tag: 'PitchShiftFactorChanged', newPitchShiftFactor: initialPitchShiftFactor,
-  } satisfies PitchShiftProcessorMessage);
-
   cxt.resume();
+  ui.ports.receiveMessage?.send("FileLoaded");
 }
 
 function parseFloatWithFallback(input: string, fallback: number): number {
