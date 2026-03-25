@@ -16,6 +16,10 @@ const ui = Elm.Main!.init({
   node: elmApp,
 });
 
+ui.ports.sendMessage?.subscribe((greeting: string) => {
+  console.log("[Elm]", greeting);
+})
+
 fileSelect.addEventListener('change', async () => {
   if (fileSelect.files == null || fileSelect.files[0] == null) {
     console.warn("No files selected...");
