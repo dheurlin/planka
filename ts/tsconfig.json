@@ -2,22 +2,18 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    "rootDir": "./src",
+    "rootDir": "./",
     "outDir": "../dist",
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "nodenext",
+    "module": "preserve",
     "target": "esnext",
     "moduleResolution": "bundler",
     "paths": {
       "wasm": [ "./src/typedecls/wasm/wasm.d.ts"]
     },
-    // "types": [],
-    // For nodejs:
-    // "lib": ["dom", "esnext"],
     "types": ["audioworklet", "node"],
-    // and npm install -D @types/node
 
     // Other Outputs
     "sourceMap": true,
@@ -34,7 +30,6 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    // "noPropertyAccessFromIndexSignature": true,
 
     // Recommended Options
     "strict": true,
