@@ -20,20 +20,20 @@ public:
     console::log("Sample rate: " + s(m_sample_rate));
   }
 
-  bool process(float *output_channels_ptr, unsigned num_channels, float playback_speed) {
+  bool process(utils::span2d<float> output, float playback_speed) {
     if (m_src_index >= get_input_channel_length()) {
-      std::memset(output_channels_ptr, 0, FRAME_SIZE * num_channels * sizeof(*output_channels_ptr));
+      // TODO Loop?
+      std::fill(output[0].begin(), output[output.count() - 1].end(), 0);
       return true;
     }
 
-    utils::span2d<float> output_channels(output_channels_ptr, num_channels, FRAME_SIZE);
     size_t curr_src_index = m_src_index;
 
     // TODO min of output channels and input channels?
-    for (unsigned channel_index = 0; channel_index < num_channels; channel_index++) {
+    for (unsigned channel = 0; channel < output.count(); channel++) {
       for (unsigned sample_index = 0; sample_index < FRAME_SIZE; sample_index++) {
         curr_src_index = m_src_index + sample_index * playback_speed;
-        output_channels[channel_index][sample_index] = m_src_channels[channel_index][curr_src_index];
+        output[channel][sample_index] = m_src_channels[channel][curr_src_index];
       }
     }
 
@@ -69,5 +69,6 @@ bool PlaybackProcessor_process(
   (void)input_channels;
   (void)input_num_channels;
 
-  return self->process(output_channels, output_num_channels, playback_speed);
+  utils::span2d<float> output(output_channels, output_num_channels, FRAME_SIZE);
+  return self->process(output, playback_speed);
 }
