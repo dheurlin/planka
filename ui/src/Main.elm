@@ -5,9 +5,7 @@ import Html exposing (Html)
 import Html exposing (div, text, p, input)
 import Html.Attributes exposing (style, type_, attribute)
 import Html.Events exposing (on)
-import File exposing (File)
 import Json.Decode as D
-import Task
 
 import MessageFromUI as FromUI
 import Html.Attributes exposing (value)
@@ -34,8 +32,7 @@ type Model
     }
 
 type Msg
-  = SelectedFile (List File)
-  | GotFileURL (String)
+  = SelectedFile (List D.Value)
   | LoadedFile
   | ChangedPitchShiftFactor Float
   | ChangedPlaybackSpeed Float
@@ -48,13 +45,9 @@ update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case ( msg, model ) of
     ( SelectedFile (f :: []), _ ) ->
-      ( model
-      , Task.perform GotFileURL <| File.toUrl f
-      )
+      ( model , FromUI.send <| FromUI.FileChosen f )
 
-    ( SelectedFile _, _ )-> (model, Cmd.none)
-
-    ( GotFileURL url, _ ) -> ( model, FromUI.send <| FromUI.FileURLReady url )
+    ( SelectedFile _, _ )-> ( model, Cmd.none )
 
     ( LoadedFile, _ ) ->
       ( FileLoaded { parameters = { pitchShiftFactor = 1, playbackSpeed = 1 } }
@@ -151,7 +144,7 @@ fileSelectView =
       ] [ ] 
   ]
 
-filesDecoder : D.Decoder (List File)
+filesDecoder : D.Decoder (List D.Value)
 filesDecoder =
-  D.at ["target","files"] (D.list File.decoder)
+  D.at ["target", "files"] (D.list D.value)
 

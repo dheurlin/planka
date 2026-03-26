@@ -9,7 +9,7 @@ send = encode >> sendMessage
 
 type MessageFromUI
   = SayHello String
-  | FileURLReady String
+  | FileChosen E.Value
   | PlaybackSpeedChanged Float
   | PitchShiftFactorChanged Float
 
@@ -19,14 +19,17 @@ encode msg = case msg of
     [ ( "tag", E.string "SayHello" )
     , ( "message", E.string str )
     ]
-  FileURLReady url-> E.object
-    [ ( "tag", E.string "FileURLReady" )
-    , ( "url", E.string url )
+
+  FileChosen f -> E.object
+    [ ( "tag", E.string "FileChosen" )
+    , ( "fileRef", f )
     ]
+
   PitchShiftFactorChanged p -> E.object 
     [ ( "tag", E.string "PitchShiftFactorChanged" )
     , ( "pitchShiftFactor", E.float p )
     ]
+
   PlaybackSpeedChanged p -> E.object
     [ ( "tag", E.string "PlaybackSpeedChanged" )
     , ( "playbackSpeed", E.float p )

@@ -17,12 +17,8 @@ const ui = Elm.Main!.init({
 
 ui.ports.sendMessage?.subscribe(async (message: any) => {
   switch (message.tag) {
-    case "SayHello":
-      console.log("[Elm]", message.message);
-      break;
-
-    case "FileURLReady": {
-      const buff = await fetch(message.url).then((p) => p.arrayBuffer());
+    case "FileChosen": {
+      const buff = await fileToArrayBuffer(message.fileRef);
       const decoded = await cxt.decodeAudioData(buff);
       // Ensure we use a sample rate that corresponds to the chosen file
       cxt = new AudioContext({ sampleRate: decoded.sampleRate });
@@ -126,6 +122,16 @@ async function startPlayingAudio(
 
   cxt.resume();
   ui.ports.receiveMessage?.send("FileLoaded");
+}
+
+function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
+  const reader = new FileReader();
+  return new Promise((resolve) => {
+    reader.readAsArrayBuffer(file);
+    reader.onload = () => {
+      resolve(reader.result as ArrayBuffer);
+    }
+  });
 }
 
 export default {}
