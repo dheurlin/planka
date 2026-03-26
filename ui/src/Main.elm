@@ -10,6 +10,8 @@ import Json.Decode as D
 import MessageFromUI as FromUI
 import Html.Attributes exposing (value)
 import Html.Attributes exposing (id)
+import Html exposing (label)
+import Html.Attributes exposing (for)
 
 port receiveMessage : (String -> msg) -> Sub msg
 
@@ -24,12 +26,14 @@ main =
 
 type Model
   = FileNotLoaded
-  | FileLoaded {
-      parameters: {
-        pitchShiftFactor: Float,
-        playbackSpeed: Float
-      }
+  | FileLoaded FileLoadedModel
+
+type alias FileLoadedModel =
+  { parameters: 
+    { pitchShiftFactor: Float
+    , playbackSpeed: Float
     }
+  }
 
 type Msg
   = SelectedFile (List D.Value)
@@ -82,11 +86,17 @@ view model =
     [ ]
     ++ contentView model
 
-contentView: Model -> List (Html Msg)
+contentView : Model -> List (Html Msg)
 contentView model = case model of
   FileNotLoaded -> fileSelectView
-  FileLoaded { parameters }->
-    [ sliderView
+  FileLoaded m -> [ loadedView m ]
+
+loadedView : FileLoadedModel -> Html Msg
+loadedView { parameters } = div []
+  [ div [ id "playback-speed-container" ]
+    [ label [ for "playback-speed" ]
+      [ text "Playback speed" ]
+    , sliderView
         { id = "playback-speed"
         , makeMsg = ChangedPlaybackSpeed
         , minValue = 0.3
@@ -94,6 +104,10 @@ contentView model = case model of
         , currentValue = parameters.playbackSpeed
         , step = 0.01
         }
+    ]
+  , div [ id "pitch-shift-factor-container" ]
+    [ label [ for "pitch-shift-factor" ]
+      [ text "Pitch shift factor" ]
     , sliderView
         { id = "pitch-shift-factor"
         , makeMsg = ChangedPitchShiftFactor
@@ -103,6 +117,7 @@ contentView model = case model of
         , step = 0.01
         }
     ]
+  ]
 
 type alias SliderViewParams msg =
   { id: String
