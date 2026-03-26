@@ -34,59 +34,51 @@ type Model
     }
 
 type Msg
-  = SayHello
-  | FileSelected (List File)
-  | FileURLReady (String)
-  -- Maybe add Model as first arg here?
-  | PitchShiftFactorChanged Float
-  | PlaybackSpeedChanged Float
-  | FileFinishedLoading
-  | ErrorOccured String
+  = SelectedFile (List File)
+  | GotFileURL (String)
+  | LoadedFile
+  | ChangedPitchShiftFactor Float
+  | ChangedPlaybackSpeed Float
+  | OccuredError String
 
 init : () -> ( Model, Cmd Msg )
 init _ = (FileNotLoaded, Cmd.none)
 
 update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-  case msg of
-    SayHello -> ( model, FromUI.send <| FromUI.SayHello "Hello from Elm!" )
-
-    FileSelected (f :: []) ->
+  case ( msg, model ) of
+    ( SelectedFile (f :: []), _ ) ->
       ( model
-      , Task.perform FileURLReady <| File.toUrl f
+      , Task.perform GotFileURL <| File.toUrl f
       )
 
-    FileSelected _ -> (model, Cmd.none)
+    ( SelectedFile _, _ )-> (model, Cmd.none)
 
-    FileURLReady url -> ( model, FromUI.send <| FromUI.FileURLReady url )
+    ( GotFileURL url, _ ) -> ( model, FromUI.send <| FromUI.FileURLReady url )
 
-    -- TODO How to avoid N x M issue here with Msg and Model??
-    PitchShiftFactorChanged p -> 
-      case model of
-        FileLoaded { parameters } ->
-          ( FileLoaded { parameters = { parameters | pitchShiftFactor = p  } }
-          , FromUI.send <| FromUI.PitchShiftFactorChanged p
-          )
-        _ -> (model, Cmd.none)
-
-    PlaybackSpeedChanged p ->
-      case model of
-        FileLoaded { parameters } -> 
-          ( FileLoaded { parameters = { parameters | playbackSpeed = p } }
-          , FromUI.send <| FromUI.PlaybackSpeedChanged p
-          )
-        _ -> (model, Cmd.none)
-
-    FileFinishedLoading ->
+    ( LoadedFile, _ ) ->
       ( FileLoaded { parameters = { pitchShiftFactor = 1, playbackSpeed = 1 } }
       , Cmd.none
       )
-    ErrorOccured _ -> ( model, Cmd.none ) -- TODO Better error handling?
+
+    ( ChangedPitchShiftFactor p, FileLoaded { parameters } ) -> 
+      ( FileLoaded { parameters = { parameters | pitchShiftFactor = p  } }
+      , FromUI.send <| FromUI.PitchShiftFactorChanged p
+      )
+
+    ( ChangedPlaybackSpeed p, FileLoaded { parameters } ) ->
+      ( FileLoaded { parameters = { parameters | playbackSpeed = p } }
+      , FromUI.send <| FromUI.PlaybackSpeedChanged p
+      )
+
+    ( OccuredError _, _) -> ( model, Cmd.none ) -- TODO Better error handling?
+
+    _ -> ( model, Cmd.none )
 
 subscriptions : Model -> Sub Msg
 subscriptions _ = receiveMessage <| \str -> case str of
-  "FileLoaded" -> FileFinishedLoading
-  _ -> ErrorOccured <| "Invalid message received: " ++ str
+  "FileLoaded" -> LoadedFile
+  _ -> OccuredError <| "Invalid message received: " ++ str
 
 view : Model -> Html Msg
 view model =
@@ -103,7 +95,7 @@ contentView model = case model of
   FileLoaded { parameters }->
     [ sliderView
         { id = "playback-speed"
-        , makeMsg = PlaybackSpeedChanged
+        , makeMsg = ChangedPlaybackSpeed
         , minValue = 0.3
         , maxValue = 2
         , currentValue = parameters.playbackSpeed
@@ -111,7 +103,7 @@ contentView model = case model of
         }
     , sliderView
         { id = "pitch-shift-factor"
-        , makeMsg = PitchShiftFactorChanged
+        , makeMsg = ChangedPitchShiftFactor
         , minValue = 0.3
         , maxValue = 2
         , currentValue = parameters.pitchShiftFactor
@@ -152,7 +144,7 @@ fileSelectView =
   [ p [] [ text "No file selected" ]
   , input
       [ type_ "file"
-      , on "change" (D.map FileSelected filesDecoder)
+      , on "change" (D.map SelectedFile filesDecoder)
       ] [ ] 
   ]
 
