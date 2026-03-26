@@ -16,12 +16,8 @@ public:
     , m_src_channels(inputs, num_channels, channel_length) {
 
     console::log("PlaybackProcessor initialised!");
-    console::log("Start pointer: " + p(inputs));
-    console::log("Channelzzz: " + s(m_src_channels.count()));
+    console::log("Channels: " + s(m_src_channels.count()));
     console::log("Sample rate: " + s(m_sample_rate));
-    console::log("Input channel length: " + s(channel_length));
-    console::log("Channel 0 length: " + s(m_src_channels.cols()));
-    console::log("Channel 1 length: " + s(m_src_channels.cols()));
   }
 
   bool process(float *output_channels_ptr, unsigned num_channels, float playback_speed) {
