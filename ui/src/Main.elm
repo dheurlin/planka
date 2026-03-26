@@ -1,19 +1,32 @@
-port module Main exposing ( main )
+module Main exposing ( main )
 
 import Browser
-import Html exposing (Html)
-import Html exposing (div, text, p, input)
-import Html.Attributes exposing (style, type_, attribute)
+import Http
+
+import Html exposing
+  ( Html
+  , div
+  , text
+  , p
+  , input
+  , label
+  )
+import Html.Attributes exposing
+  ( style
+  , type_
+  , attribute
+  , value
+  , for
+  , id
+  )
 import Html.Events exposing (on)
 import Json.Decode as D
+import Bytes exposing ( Endianness(..) )
 
 import MessageFromUI as FromUI
-import Html.Attributes exposing (value)
-import Html.Attributes exposing (id)
-import Html exposing (label)
-import Html.Attributes exposing (for)
+import MessageToUI as ToUI
 
-port receiveMessage : (String -> msg) -> Sub msg
+import Utils
 
 main : Program () Model Msg
 main =
@@ -26,18 +39,27 @@ main =
 
 type Model
   = FileNotLoaded
+  | FileLoading FileInfo -- TODO FileInfo needed here?
   | FileLoaded FileLoadedModel
 
+type alias FileInfo =
+  { sampleRate: Float, durationInMs: Int, dataURL: String, numSamples: Int }
+
 type alias FileLoadedModel =
-  { parameters: 
-    { pitchShiftFactor: Float
-    , playbackSpeed: Float
-    }
+  { parameters: PlaybackParameters
+  , fileInfo: FileInfo
+  , channelData: List Float
+  }
+
+type alias PlaybackParameters =
+  { pitchShiftFactor: Float
+  , playbackSpeed: Float
   }
 
 type Msg
   = SelectedFile (List D.Value)
-  | LoadedFile
+  | GotFileInfo FileInfo
+  | GotFileData (List Float) -- TODO Just one channel for now
   | ChangedPitchShiftFactor Float
   | ChangedPlaybackSpeed Float
   | OccuredError String
@@ -53,29 +75,59 @@ update msg model =
 
     ( SelectedFile _, _ )-> ( model, Cmd.none )
 
-    ( LoadedFile, _ ) ->
-      ( FileLoaded { parameters = { pitchShiftFactor = 1, playbackSpeed = 1 } }
+    ( GotFileInfo i, _ ) -> ( FileLoading i , downloadAudioBytes i.dataURL i.numSamples )
+
+    ( GotFileData fs, FileLoading i ) ->
+      ( FileLoaded
+        { parameters = { playbackSpeed = 1, pitchShiftFactor = 1 }
+        , fileInfo = i
+        , channelData = fs
+        }
       , Cmd.none
       )
 
-    ( ChangedPitchShiftFactor p, FileLoaded { parameters } ) -> 
-      ( FileLoaded { parameters = { parameters | pitchShiftFactor = p  } }
+    ( ChangedPitchShiftFactor p, FileLoaded data ) -> 
+      ( FileLoaded
+        { data
+        | parameters = { pitchShiftFactor = p, playbackSpeed = data.parameters.playbackSpeed }
+        }
       , FromUI.send <| FromUI.PitchShiftFactorChanged p
       )
 
-    ( ChangedPlaybackSpeed p, FileLoaded { parameters } ) ->
-      ( FileLoaded { parameters = { parameters | playbackSpeed = p } }
+    ( ChangedPlaybackSpeed p, FileLoaded data) ->
+      ( FileLoaded
+        { data
+        | parameters = { playbackSpeed = p, pitchShiftFactor = data.parameters.pitchShiftFactor }
+        }
       , FromUI.send <| FromUI.PlaybackSpeedChanged p
       )
 
-    ( OccuredError _, _) -> ( model, Cmd.none ) -- TODO Better error handling?
+    ( OccuredError e, _) -> ( Debug.log e model, Cmd.none ) -- TODO Better error handling?
 
     _ -> ( model, Cmd.none )
 
+downloadAudioBytes : String -> Int -> Cmd Msg
+downloadAudioBytes bytesUrl length =
+  let
+      makeMsg : Result Http.Error (List Float) -> Msg
+      makeMsg r = case r of
+        Ok bytes -> GotFileData bytes
+        Err m -> OccuredError <| Utils.httpErrorToString m
+  in
+    Http.get
+      { url = bytesUrl
+      , expect = Http.expectBytes makeMsg (Utils.floatListDecoder length)
+      }
+
 subscriptions : Model -> Sub Msg
-subscriptions _ = receiveMessage <| \str -> case str of
-  "FileLoaded" -> LoadedFile
-  _ -> OccuredError <| "Invalid message received: " ++ str
+subscriptions _ = ToUI.receive <| \m -> case m of
+  Ok (ToUI.AudioInfo info) -> GotFileInfo
+    { durationInMs = info.durationInMs
+    , sampleRate = info.sampleRate
+    , dataURL = info.dataURL
+    , numSamples = info.numSamples
+    }
+  Err e                 -> OccuredError e
 
 view : Model -> Html Msg
 view model =
@@ -90,6 +142,7 @@ view model =
 contentView : Model -> List (Html Msg)
 contentView model = case model of
   FileNotLoaded -> fileSelectView
+  FileLoading _  -> [ text "Loading..." ]
   FileLoaded m -> [ loadedView m ]
 
 loadedView : FileLoadedModel -> Html Msg

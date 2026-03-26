@@ -23,7 +23,7 @@ ui.ports.sendMessage?.subscribe(async (message: any) => {
 
       const channelData = Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i).buffer)
 
-      startPlayingAudio(channelData);
+      startPlayingAudio(channelData, decoded);
       break;
     }
 
@@ -55,7 +55,13 @@ ui.ports.sendMessage?.subscribe(async (message: any) => {
 
 async function startPlayingAudio(
   channelData: Array<ArrayBuffer>,
+  audioBuffer: AudioBuffer,
 ) {
+  // Have to do it before we send it to PlaybackProcessor, cause we
+  // transfer it and it gets invalidated
+  const dataURL = URL.createObjectURL(new Blob([ channelData[0]! ]));
+  const numSamples = channelData[0]!.byteLength / 4;
+
   await Promise.all(['PlaybackProcessor', 'PitchShiftProcessor'].map((name) => {
     return cxt.audioWorklet.addModule(`dist/${name}.js`);
   }));
@@ -77,7 +83,15 @@ async function startPlayingAudio(
   );
 
   cxt.resume();
-  ui.ports.receiveMessage?.send("FileLoaded");
+
+  console.log("dataURL from JS side: ", dataURL);
+  ui.ports.receiveMessage?.send({
+    tag: 'AudioInfo',
+    sampleRate: audioBuffer.sampleRate,
+    durationInMs: Math.round(audioBuffer.duration * 1000),
+    dataURL,
+    numSamples,
+  });
 }
 
 function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
