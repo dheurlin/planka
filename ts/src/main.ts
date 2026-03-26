@@ -3,8 +3,6 @@ import { Elm } from './Main.elm';
 import type { PlaybackProcessorMessage } from './PlaybackProcessor';
 import type { PitchShiftProcessorMessage } from './PitchShiftProcessor';
 
-declare const playbackSpeedSlider: HTMLInputElement;
-declare const pitchShiftFactorSlider: HTMLInputElement;
 declare const elmApp: HTMLDivElement;
 
 let cxt = new AudioContext();
@@ -54,48 +52,6 @@ ui.ports.sendMessage?.subscribe(async (message: any) => {
       throw new TypeError(`Unknown message from Elm: ${JSON.stringify(message)}`);
   }
 })
-
-playbackSpeedSlider.addEventListener('change', () => {
-  if (player === undefined) {
-    return;
-  }
-  const hopefullyFloat = Number.parseFloat(playbackSpeedSlider.value);
-  if (Number.isNaN(hopefullyFloat)) {
-    console.error("Invalid data in input slider: ", playbackSpeedSlider.value);
-    return;
-  }
-
-  player.port.postMessage({
-    tag: 'PlaybackSpeedChanged', newSpeed: hopefullyFloat,
-  } satisfies PlaybackProcessorMessage);
-
-  if (pitchShifter === undefined) {
-    console.error("pitchShifter was undefined!");
-    return;
-  }
-  pitchShifter.port.postMessage({
-    tag: 'PlaybackSpeedChanged',
-    newSpeed: hopefullyFloat,
-  } satisfies PitchShiftProcessorMessage);
-});
-
-pitchShiftFactorSlider.addEventListener('change', () => {
-  console.log("LKJDFLKJDF");
-  if (pitchShifter === undefined) {
-    console.error("pitchShifter was undefined!");
-    return;
-  }
-  const hopefullyFloat = Number.parseFloat(pitchShiftFactorSlider.value);
-  if (Number.isNaN(hopefullyFloat)) {
-    console.error("Invalid data in input slider: ", playbackSpeedSlider.value);
-    return;
-  }
-
-  pitchShifter.port.postMessage({
-    tag: 'PitchShiftFactorChanged',
-    newPitchShiftFactor: hopefullyFloat,
-  } satisfies PitchShiftProcessorMessage);
-});
 
 async function startPlayingAudio(
   channelData: Array<ArrayBuffer>,
