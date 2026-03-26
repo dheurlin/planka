@@ -128,16 +128,19 @@ sliderView params = input
   , attribute "max" (String.fromFloat params.maxValue)
   , value (String.fromFloat params.currentValue)
   , attribute "step" (String.fromFloat params.step)
-  , on "change" (D.map params.makeMsg (D.at ["target", "value"] stringFloatDecoder))
+  , on "change" (D.map params.makeMsg targetValueFloatDecoder)
   ]
   [ ]
 
-stringFloatDecoder : D.Decoder Float
-stringFloatDecoder = D.string |> D.andThen
-  ( \val -> case String.toFloat val of
-      Just f -> D.succeed f
-      Nothing -> D.fail ""
-  )
+targetValueFloatDecoder : D.Decoder Float
+targetValueFloatDecoder =
+  let
+    decodeFloat fs =
+      case String.toFloat fs of
+        Just f -> D.succeed f
+        Nothing -> D.fail <| ""
+  in
+    D.at ["target", "value"] D.string |> D.andThen decodeFloat
 
 fileSelectView : List (Html Msg)
 fileSelectView = 
