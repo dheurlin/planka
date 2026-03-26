@@ -80,9 +80,10 @@ subscriptions _ = receiveMessage <| \str -> case str of
 view : Model -> Html Msg
 view model =
   div 
-    [ style "background-color" "red" 
+    [ id "app-container"
+    , style "background-color" "white" 
     , style "width" "100%"
-    , style "padding" "20px 0"] <| 
+    , style "padding" "20px 8px"] <| 
     [ ]
     ++ contentView model
 
