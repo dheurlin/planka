@@ -34,7 +34,12 @@ export abstract class WasmAudioProcessor {
       throw new TypeError(`Expected instance to have an exported function "${processFnName}"`);
     }
 
-    this.wasmProcessFunc = this.instance.exports[processFnName] as typeof this.wasmProcessFunc;
+    this.wasmProcessFunc = (...args: Parameters<typeof this.wasmProcessFunc>) => {
+      const res = (this.instance.exports[processFnName] as typeof this.wasmProcessFunc)(...args);
+      // It actually returns an int. On desktop, this doesn't matter, but on mobile it refuses
+      // to play
+      return Boolean(res);
+    };
   }
 
   protected getAudioBuffers(inputNumChannels: number, outputNumChannels: number): {
