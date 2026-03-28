@@ -1,0 +1,32 @@
+body {
+  margin: 0px;
+  padding: 0px;
+
+  background-color: pink;
+}
+
+#app-container {
+  width: 100%;
+  padding: 20px 8px;
+  box-sizing: border-box;
+  background-color: white;
+}
+
+#sound-wave-container {
+  position: relative;
+  border: 1px dashed olive;
+  height: 200px;
+
+  .sound-wave-svg {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+  }
+
+  .sound-line {
+    fill: none;
+    stroke: green;
+    stroke-width: 2;
+  }
+}

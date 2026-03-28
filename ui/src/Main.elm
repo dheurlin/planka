@@ -21,6 +21,7 @@ import Html.Attributes exposing
   )
 import Svg exposing (Svg)
 import Svg as S
+import Svg.Attributes as S
 
 import Html.Events exposing (on)
 import Json.Decode as D
@@ -241,15 +242,48 @@ targetValueFloatDecoder =
   in
     D.at ["target", "value"] D.string |> D.andThen decodeFloat
 
+numSamplesToDisplay = 3000
+
 soundWaveView : FileLoadedModel -> Html Msg
 soundWaveView { channelData, soundwaveDimensions } =
-  div
-    [ id "sound-wave-container" ]
-    [ S.svg
-      []
-      []
-    , text <| "Width: " ++ (String.fromInt(soundwaveDimensions.width)) ++ ", Height: " ++ (String.fromInt(soundwaveDimensions.height))
-    ]
+  let
+    width = soundwaveDimensions.width
+    height = soundwaveDimensions.height
+    widthStr = String.fromFloat width
+    heightStr = String.fromFloat height
+    downSamplingStride = toFloat (Array.length channelData) / numSamplesToDisplay
+    samplesToDisplay = Array.initialize numSamplesToDisplay <| \i ->
+      Array.get (floor <| toFloat i * downSamplingStride) channelData |> Maybe.withDefault 0
+    linePoints = samplesToLinePoints (width, height) samplesToDisplay
+  in
+    div
+      [ id "sound-wave-container" ]
+      [ S.svg
+        [ S.class "sound-wave-svg"
+        , S.width widthStr
+        , S.height heightStr
+        , S.viewBox <| "0 0 " ++ widthStr ++ " " ++ heightStr
+        ]
+        [ S.polyline 
+          [ S.points <| stringifyLinePoints linePoints
+          , S.class "sound-line"
+          ]
+          [  ]
+        ]
+      , text <| "Width: " ++ widthStr ++ ", Height: " ++ heightStr
+      ]
+
+stringifyLinePoints : Array (Float, Float) -> String
+stringifyLinePoints = Array.foldl (\(x, y) acc -> acc ++ (String.fromFloat x) ++ "," ++ (String.fromFloat y) ++ " ") ""
+
+samplesToLinePoints : (Float, Float) -> Array Float -> Array (Float, Float)
+samplesToLinePoints dims arr = Array.indexedMap (\i s -> sampleToLinePoint dims (Array.length arr) i s) arr
+
+sampleToLinePoint : (Float, Float) -> Int -> Int -> Float -> (Float, Float)
+sampleToLinePoint (width, height) numSamples sampleIndex sample =
+  ( (toFloat sampleIndex / toFloat numSamples) * width
+  , (height / 2) + sample * height
+  )
 
 fileSelectView : List (Html Msg)
 fileSelectView = 
