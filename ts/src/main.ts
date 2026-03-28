@@ -97,15 +97,10 @@ async function startPlayingAudio(
 }
 
 function reverseSamples(orig: Float32Array<ArrayBuffer>): Float32Array<ArrayBuffer> {
-  const reversed = new Float32Array(orig.length);
-
-  for (let i = 0; i < orig.length; i++) {
-    reversed[i] = orig[orig.length - 1 - i]!;
-  }
-
-  console.log("Reversed: ", reversed);
-
-  return reversed;
+  const copy = new Float32Array(orig.length);
+  copy.set(orig);
+  copy.reverse();
+  return copy;
 }
 
 function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
