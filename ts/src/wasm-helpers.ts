@@ -1,4 +1,8 @@
-export function wasmImportObject(moduleName: string, getInstance: () => WebAssembly.Instance): WebAssembly.Imports {
+export function wasmImportObject(
+  moduleName: string,
+  getInstance: () => WebAssembly.Instance,
+  additionalFunctions: Record<string, Function>,
+): WebAssembly.Imports {
   return ({
     env: {
       _console_log: (ptr: number) => {
@@ -22,6 +26,7 @@ export function wasmImportObject(moduleName: string, getInstance: () => WebAssem
           ].join('\n'),
         )
       },
+      ...additionalFunctions,
       ...notImplementedFuncs([
         // Inshallah this will not be called
         '__mulsc3',

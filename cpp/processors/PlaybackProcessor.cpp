@@ -9,6 +9,11 @@
 // to assume that all input and output channels have this length
 const unsigned FRAME_SIZE = 128;
 
+constexpr float NUM_PROGRESS_REPORTS_PER_SECOND = 5;
+constexpr float PROGRESS_REPORT_FREQUENCY = 1.0 / NUM_PROGRESS_REPORTS_PER_SECOND;
+
+WASM_IMPORT void report_current_progress_in_samples(size_t samples);
+
 class PlaybackProcessor {
 public:
   PlaybackProcessor(unsigned sample_rate, float* inputs, int num_channels, int channel_length)
@@ -21,6 +26,12 @@ public:
   }
 
   bool process(utils::span2d<float> output, float playback_speed, bool is_playing) {
+    int progress_report_frequency_samples = m_sample_rate * PROGRESS_REPORT_FREQUENCY;
+
+    if (is_playing && (m_src_index % progress_report_frequency_samples) < FRAME_SIZE) {
+      report_current_progress_in_samples(m_src_index);
+    }
+
     if (!is_playing) {
       std::fill(output[0].begin(), output[output.count() - 1].end(), 0);
       return true;

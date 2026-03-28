@@ -15,7 +15,11 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
     this.port.onmessage = async function (this, ev: MessageEvent<PlaybackProcessorMessage>) {
       switch (ev.data.tag) {
         case 'DataReady':
-          self.wasmPlaybackProcesor = await WasmPlaybackProcessor.instantiate(WasmBinary, ev.data.channels);
+          self.wasmPlaybackProcesor = await WasmPlaybackProcessor.instantiate(
+            WasmBinary,
+            ev.data.channels,
+            self.reportCurrentProgressInSamples.bind(self),
+          );
           break;
 
         case "PlaybackSpeedChanged":
@@ -45,6 +49,13 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
     const output = outputs[0]!;
     return this.wasmPlaybackProcesor.process(input, output, this.playbackSpeed, this.isPlaying);
   }
+
+  private reportCurrentProgressInSamples(samples: number) {
+    this.port.postMessage({
+      tag: "ProgressChanged",
+      currentProgressInSamples: samples,
+    } satisfies MessageFromPlaybackProcessor);
+  }
 }
 
 export type PlaybackProcessorMessage =
@@ -59,6 +70,9 @@ export type PlaybackProcessorMessage =
   } | {
     tag: 'Pause',
   };
+
+export type MessageFromPlaybackProcessor =
+  | { tag: "ProgressChanged", currentProgressInSamples: number }
 
 registerProcessor('playback-processor', PlaybackProcessor);
 
@@ -79,10 +93,20 @@ class WasmPlaybackProcessor extends WasmAudioProcessor {
     this.wasmObjPtr = this.wasmInitFunc(sampleRate, audioDataWasmPtr, audioData.length, channelLen);
   }
 
-  static async instantiate(wasmBinary: Uint8Array, audioData: Array<ArrayBuffer>): Promise<WasmPlaybackProcessor> {
+  static async instantiate(
+    wasmBinary: Uint8Array,
+    audioData: Array<ArrayBuffer>,
+    onProgressInSamplesChanged: (samples: number) => void,
+  ): Promise<WasmPlaybackProcessor> {
     const { instance } = await WebAssembly.instantiate(
       wasmBinary,
-      wasmImportObject("PlaybackProcessor", () => instance),
+      wasmImportObject(
+        "PlaybackProcessor",
+        () => instance,
+        {
+          'report_current_progress_in_samples': onProgressInSamplesChanged,
+        }
+      ),
     ) as unknown as WebAssembly.WebAssemblyInstantiatedSource; // Type declarations seem to be wrong here?
 
     return new WasmPlaybackProcessor(instance, audioData);

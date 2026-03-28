@@ -60,7 +60,7 @@ class WasmPitchShiftProcessor extends WasmAudioProcessor {
   static async instantiate(wasmBinary: Uint8Array): Promise<WasmPitchShiftProcessor> {
     const { instance } = await WebAssembly.instantiate(
       wasmBinary,
-      wasmImportObject("PitchShiftProcessor", () => instance),
+      wasmImportObject("PitchShiftProcessor", () => instance, {}),
     ) as unknown as WebAssembly.WebAssemblyInstantiatedSource; // Type declarations seem to be wrong here?
 
     return new WasmPitchShiftProcessor(instance);
