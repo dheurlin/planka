@@ -16,12 +16,12 @@ resize toMsg = resizeEventOccured <| D.decodeValue decode >>
 
 type alias ResizeEvent =
   { elementId: String
-  , newWidth: Int
-  , newHeight: Int
+  , newWidth: Float
+  , newHeight: Float
   }
 
 decode : D.Decoder ResizeEvent
 decode = D.map3 ResizeEvent
   ( D.field "elementId" D.string )
-  ( D.field "newWidth" D.int )
-  ( D.field "newHeight" D.int )
+  ( D.field "newWidth" D.float )
+  ( D.field "newHeight" D.float )

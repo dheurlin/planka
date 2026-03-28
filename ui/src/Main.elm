@@ -60,7 +60,7 @@ type alias FileLoadedModel =
   { parameters: PlaybackParameters
   , fileInfo: FileInfo
   , channelData: Array Float
-  , soundwaveDimensions: { height: Int, width: Int }
+  , soundwaveDimensions: { height: Float, width: Float }
   }
 
 type alias PlaybackParameters =
@@ -74,7 +74,7 @@ type Msg
   | GotFileData (Array Float) -- TODO Just one channel for now
   | ChangedPitchShiftFactor Float
   | ChangedPlaybackSpeed Float
-  | GotResizeEvent { elementId: String, newWidth: Int, newHeight: Int }
+  | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float }
   | OccuredError String
 
 init : () -> ( Model, Cmd Msg )
