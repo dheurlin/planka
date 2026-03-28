@@ -30,6 +30,8 @@ import Array exposing (Array)
 import MessageFromUI as FromUI
 import MessageToUI as ToUI
 
+import ResizeObserver
+
 import Utils
 
 main : Program () Model Msg
@@ -58,6 +60,7 @@ type alias FileLoadedModel =
   { parameters: PlaybackParameters
   , fileInfo: FileInfo
   , channelData: Array Float
+  , soundwaveDimensions: { height: Int, width: Int }
   }
 
 type alias PlaybackParameters =
@@ -71,6 +74,7 @@ type Msg
   | GotFileData (Array Float) -- TODO Just one channel for now
   | ChangedPitchShiftFactor Float
   | ChangedPlaybackSpeed Float
+  | GotResizeEvent { elementId: String, newWidth: Int, newHeight: Int }
   | OccuredError String
 
 init : () -> ( Model, Cmd Msg )
@@ -91,8 +95,9 @@ update msg model =
         { parameters = { playbackSpeed = 1, pitchShiftFactor = 1 }
         , fileInfo = i
         , channelData = fs
+        , soundwaveDimensions = { height = 0, width = 0 }
         }
-      , Cmd.none
+      , ResizeObserver.observeElement "sound-wave-container"
       )
 
     ( ChangedPitchShiftFactor p, FileLoaded data ) -> 
@@ -110,6 +115,17 @@ update msg model =
         }
       , FromUI.send <| FromUI.PlaybackSpeedChanged p
       )
+
+    ( GotResizeEvent ev, FileLoaded data ) -> case ev.elementId of
+      "sound-wave-container" ->
+        ( FileLoaded
+          { data
+          | soundwaveDimensions = { width = ev.newWidth, height = ev.newHeight }
+          }
+        , Cmd.none
+        )
+
+      _ -> ( model, Cmd.none )
 
     ( OccuredError e, _) -> ( Debug.log e model, Cmd.none ) -- TODO Better error handling?
 
@@ -129,14 +145,24 @@ downloadAudioBytes bytesUrl length =
       }
 
 subscriptions : Model -> Sub Msg
-subscriptions _ = ToUI.receive <| \m -> case m of
-  Ok (ToUI.AudioInfo info) -> GotFileInfo
-    { durationInMs = info.durationInMs
-    , sampleRate = info.sampleRate
-    , reverseSamplesURL = info.reverseSamplesURL
-    , numSamples = info.numSamples
-    }
-  Err e                 -> OccuredError e
+subscriptions _ =
+  Sub.batch
+    [ ToUI.receive <| \m -> case m of
+        Ok (ToUI.AudioInfo info) -> GotFileInfo
+          { durationInMs = info.durationInMs
+          , sampleRate = info.sampleRate
+          , reverseSamplesURL = info.reverseSamplesURL
+          , numSamples = info.numSamples
+          }
+        Err e                 -> OccuredError e
+    , ResizeObserver.resize <| \res -> case res of
+        Ok ev -> GotResizeEvent
+          { elementId = ev.elementId
+          , newWidth = ev.newWidth
+          , newHeight = ev.newHeight
+          }
+        Err e -> OccuredError e
+    ]
 
 view : Model -> Html Msg
 view model =
@@ -216,12 +242,13 @@ targetValueFloatDecoder =
     D.at ["target", "value"] D.string |> D.andThen decodeFloat
 
 soundWaveView : FileLoadedModel -> Html Msg
-soundWaveView { channelData } =
+soundWaveView { channelData, soundwaveDimensions } =
   div
     [ id "sound-wave-container" ]
     [ S.svg
       []
       []
+    , text <| "Width: " ++ (String.fromInt(soundwaveDimensions.width)) ++ ", Height: " ++ (String.fromInt(soundwaveDimensions.height))
     ]
 
 fileSelectView : List (Html Msg)

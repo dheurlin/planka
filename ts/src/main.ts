@@ -2,6 +2,7 @@ import { Elm } from './Main.elm';
 
 import type { PlaybackProcessorMessage } from './PlaybackProcessor';
 import type { PitchShiftProcessorMessage } from './PitchShiftProcessor';
+import { ResizeObserverElmIntegration } from './ResizeObserverElmIntegration';
 
 declare const elmApp: HTMLDivElement;
 
@@ -12,6 +13,8 @@ let pitchShifter: AudioWorkletNode | undefined;
 const ui = Elm.Main!.init({
   node: elmApp,
 });
+
+const _resizer = new ResizeObserverElmIntegration(ui);
 
 ui.ports.sendMessage?.subscribe(async (message: any) => {
   switch (message.tag) {
