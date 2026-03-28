@@ -22,6 +22,7 @@ import Html.Attributes exposing
 import Html.Events exposing (on)
 import Json.Decode as D
 import Bytes exposing ( Endianness(..) )
+import Array exposing (Array)
 
 import MessageFromUI as FromUI
 import MessageToUI as ToUI
@@ -43,12 +44,16 @@ type Model
   | FileLoaded FileLoadedModel
 
 type alias FileInfo =
-  { sampleRate: Float, durationInMs: Int, dataURL: String, numSamples: Int }
+  { sampleRate: Float
+  , durationInMs: Int
+  , reverseSamplesURL: String -- We receive the samples in reverse, so we don't have to reverse a linked list on the elm side
+  , numSamples: Int
+  }
 
 type alias FileLoadedModel =
   { parameters: PlaybackParameters
   , fileInfo: FileInfo
-  , channelData: List Float
+  , channelData: Array Float
   }
 
 type alias PlaybackParameters =
@@ -59,7 +64,7 @@ type alias PlaybackParameters =
 type Msg
   = SelectedFile (List D.Value)
   | GotFileInfo FileInfo
-  | GotFileData (List Float) -- TODO Just one channel for now
+  | GotFileData (Array Float) -- TODO Just one channel for now
   | ChangedPitchShiftFactor Float
   | ChangedPlaybackSpeed Float
   | OccuredError String
@@ -75,7 +80,7 @@ update msg model =
 
     ( SelectedFile _, _ )-> ( model, Cmd.none )
 
-    ( GotFileInfo i, _ ) -> ( FileLoading i , downloadAudioBytes i.dataURL i.numSamples )
+    ( GotFileInfo i, _ ) -> ( FileLoading i , downloadAudioBytes i.reverseSamplesURL i.numSamples )
 
     ( GotFileData fs, FileLoading i ) ->
       ( FileLoaded
@@ -109,14 +114,14 @@ update msg model =
 downloadAudioBytes : String -> Int -> Cmd Msg
 downloadAudioBytes bytesUrl length =
   let
-      makeMsg : Result Http.Error (List Float) -> Msg
+      makeMsg : Result Http.Error (Array Float) -> Msg
       makeMsg r = case r of
         Ok bytes -> GotFileData bytes
         Err m -> OccuredError <| Utils.httpErrorToString m
   in
     Http.get
       { url = bytesUrl
-      , expect = Http.expectBytes makeMsg (Utils.floatListDecoder length)
+      , expect = Http.expectBytes makeMsg (Utils.floatArrayReverseDecoder length)
       }
 
 subscriptions : Model -> Sub Msg
@@ -124,7 +129,7 @@ subscriptions _ = ToUI.receive <| \m -> case m of
   Ok (ToUI.AudioInfo info) -> GotFileInfo
     { durationInMs = info.durationInMs
     , sampleRate = info.sampleRate
-    , dataURL = info.dataURL
+    , reverseSamplesURL = info.reverseSamplesURL
     , numSamples = info.numSamples
     }
   Err e                 -> OccuredError e
