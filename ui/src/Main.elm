@@ -104,7 +104,7 @@ update msg model =
 
     ( OccuredError e, _) -> ( Debug.log e model, Cmd.none ) -- TODO Better error handling?
 
-    _ -> ( model, Cmd.none )
+    (c, m) -> ( Debug.log "UNHANDLED MODEL" m, Debug.log "AND MSG" c |> always Cmd.none )
 
 downloadAudioBytes : String -> Int -> Cmd Msg
 downloadAudioBytes bytesUrl length =
