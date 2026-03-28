@@ -12,14 +12,13 @@ import Html exposing
   , label
   )
 import Html.Attributes exposing
-  ( style
-  , type_
+  ( type_
   , attribute
   , value
   , for
   , id
   )
-import Svg exposing (Svg)
+
 import Svg as S
 import Svg.Attributes as S
 
@@ -168,10 +167,7 @@ subscriptions _ =
 view : Model -> Html Msg
 view model =
   div 
-    [ id "app-container"
-    , style "background-color" "white" 
-    , style "width" "100%"
-    , style "padding" "20px 8px"] <| 
+    [ id "app-container"] <| 
     [ ]
     ++ contentView model
 
