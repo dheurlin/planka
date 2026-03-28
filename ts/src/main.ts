@@ -17,6 +17,7 @@ ui.ports.sendMessage?.subscribe(async (message: any) => {
   switch (message.tag) {
     case "FileChosen": {
       const buff = await fileToArrayBuffer(message.fileRef);
+      console.log("Decoding audio...");
       const decoded = await cxt.decodeAudioData(buff);
       // Ensure we use a sample rate that corresponds to the chosen file
       cxt = new AudioContext({ sampleRate: decoded.sampleRate });
@@ -57,6 +58,7 @@ async function startPlayingAudio(
   channelData: Array<ArrayBuffer>,
   audioBuffer: AudioBuffer,
 ) {
+  console.log("Reversing samples...");
   // Have to do it before we send it to PlaybackProcessor, cause we
   // transfer it and it gets invalidated
   const reverseSamplesURL = URL.createObjectURL(new Blob([
@@ -76,6 +78,7 @@ async function startPlayingAudio(
 
   player.connect(pitchShifter).connect(cxt.destination);
 
+  console.log("Ready to play");
   player.port.postMessage(
     {
       tag: 'DataReady',
