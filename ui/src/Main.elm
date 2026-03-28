@@ -153,7 +153,7 @@ update msg model =
       )
 
     ( GotPlaybackProgress { progressInSamples }, FileLoaded data ) ->
-      ( Debug.log "Got progress!" FileLoaded
+      ( FileLoaded
         { data
         | playbackStatus =
             { playingStatus = data.playbackStatus.playingStatus
