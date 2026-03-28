@@ -19,6 +19,9 @@ import Html.Attributes exposing
   , for
   , id
   )
+import Svg exposing (Svg)
+import Svg as S
+
 import Html.Events exposing (on)
 import Json.Decode as D
 import Bytes exposing ( Endianness(..) )
@@ -151,7 +154,7 @@ contentView model = case model of
   FileLoaded m -> [ loadedView m ]
 
 loadedView : FileLoadedModel -> Html Msg
-loadedView { parameters } = div []
+loadedView m = div []
   [ div [ id "playback-speed-container" ]
     [ label [ for "playback-speed" ]
       [ text "Playback speed" ]
@@ -160,7 +163,7 @@ loadedView { parameters } = div []
         , makeMsg = ChangedPlaybackSpeed
         , minValue = 0.3
         , maxValue = 2
-        , currentValue = parameters.playbackSpeed
+        , currentValue = m.parameters.playbackSpeed
         , step = 0.01
         }
     ]
@@ -172,10 +175,11 @@ loadedView { parameters } = div []
         , makeMsg = ChangedPitchShiftFactor
         , minValue = 0.3
         , maxValue = 2
-        , currentValue = parameters.pitchShiftFactor
+        , currentValue = m.parameters.pitchShiftFactor
         , step = 0.01
         }
     ]
+  , soundWaveView m
   ]
 
 type alias SliderViewParams msg =
@@ -208,6 +212,15 @@ targetValueFloatDecoder =
         Nothing -> D.fail <| ""
   in
     D.at ["target", "value"] D.string |> D.andThen decodeFloat
+
+soundWaveView : FileLoadedModel -> Html Msg
+soundWaveView { channelData } =
+  div
+    [ id "sound-wave-container" ]
+    [ S.svg
+      []
+      []
+    ]
 
 fileSelectView : List (Html Msg)
 fileSelectView = 
