@@ -18,7 +18,7 @@ type MessageToUI =
 type alias AudioInfoPayload =
   { sampleRate: Float
   , durationInMs: Int
-  , dataURL: String
+  , reverseSamplesURL: String
   , numSamples: Int
   }
 
@@ -35,7 +35,7 @@ decodeAudioInfoPayload =
   D.map4 AudioInfoPayload
     ( D.field "sampleRate" D.float )
     ( D.field "durationInMs" D.int )
-    ( D.field "dataURL" D.string )
+    ( D.field "reverseSamplesURL" D.string )
     ( D.field "numSamples" D.int )
 
 quote : String -> String

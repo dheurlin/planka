@@ -59,7 +59,9 @@ async function startPlayingAudio(
 ) {
   // Have to do it before we send it to PlaybackProcessor, cause we
   // transfer it and it gets invalidated
-  const dataURL = URL.createObjectURL(new Blob([ channelData[0]! ]));
+  const reverseSamplesURL = URL.createObjectURL(new Blob([
+    reverseSamples(new Float32Array(channelData[0]!)).buffer
+  ]));
   const numSamples = channelData[0]!.byteLength / 4;
 
   await Promise.all(['PlaybackProcessor', 'PitchShiftProcessor'].map((name) => {
@@ -84,14 +86,26 @@ async function startPlayingAudio(
 
   cxt.resume();
 
-  console.log("dataURL from JS side: ", dataURL);
+  console.log("dataURL from JS side: ", reverseSamplesURL);
   ui.ports.receiveMessage?.send({
     tag: 'AudioInfo',
     sampleRate: audioBuffer.sampleRate,
     durationInMs: Math.round(audioBuffer.duration * 1000),
-    dataURL,
+    reverseSamplesURL: reverseSamplesURL,
     numSamples,
   });
+}
+
+function reverseSamples(orig: Float32Array<ArrayBuffer>): Float32Array<ArrayBuffer> {
+  const reversed = new Float32Array(orig.length);
+
+  for (let i = 0; i < orig.length; i++) {
+    reversed[i] = orig[orig.length - 1 - i]!;
+  }
+
+  console.log("Reversed: ", reversed);
+
+  return reversed;
 }
 
 function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
