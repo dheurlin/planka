@@ -43,6 +43,7 @@ main =
 
 type Model
   = FileNotLoaded
+  | FileSelected
   | FileLoading FileInfo -- TODO FileInfo needed here?
   | FileLoaded FileLoadedModel
 
@@ -79,7 +80,7 @@ update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case ( msg, model ) of
     ( SelectedFile (f :: []), _ ) ->
-      ( model , FromUI.send <| FromUI.FileChosen f )
+      ( FileSelected , FromUI.send <| FromUI.FileChosen f )
 
     ( SelectedFile _, _ )-> ( model, Cmd.none )
 
@@ -151,6 +152,7 @@ contentView : Model -> List (Html Msg)
 contentView model = case model of
   FileNotLoaded -> fileSelectView
   FileLoading _  -> [ text "Loading..." ]
+  FileSelected   -> [ text "Loading..." ]
   FileLoaded m -> [ loadedView m ]
 
 loadedView : FileLoadedModel -> Html Msg
