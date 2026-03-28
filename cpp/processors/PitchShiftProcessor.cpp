@@ -1,3 +1,4 @@
+#include <numeric>
 #include <optional>
 #include <vector>
 
@@ -46,15 +47,32 @@ public:
     utils::span2d<float> input,
     utils::span2d<float> output,
     float target_pitch_shift_factor,
-    float playback_speed
+    float playback_speed,
+    bool mix_to_mono // Improves performance for slower machines
   ) {
     auto &channels_stuff = get_or_initialise_channels(input.count());
+
+    std::vector<size_t> all_channel_ixs(input.count());
+    std::iota(all_channel_ixs.begin(), all_channel_ixs.end(), 0);
+
+    size_t channels_to_process = mix_to_mono ? 1 : input.count();
+    std::vector<float> mono_input(FRAME_SIZE);
+    if (mix_to_mono) {
+      for (size_t sample = 0; sample < FRAME_SIZE; sample++) {
+        float avg = 0;
+        for (size_t channel = 0; channel < input.count(); channel++) {
+          avg += input[channel][sample] / input.count();
+        }
+        mono_input[sample] = avg;
+      }
+    }
 
     // Compensate for the effects of playback speed
     auto effective_pitch_shift_factor = target_pitch_shift_factor / playback_speed;
 
-    for (unsigned channel = 0; channel < input.count(); channel++) {
+    for (unsigned channel = 0; channel < channels_to_process; channel++) {
       auto &channel_stuff = channels_stuff[channel];
+      auto input_channel = mix_to_mono ? mono_input : input[channel];
       // Shift input buffer
       std::copy(
         channel_stuff.input_buffer.begin() + FRAME_SIZE,
@@ -64,8 +82,8 @@ public:
 
       // Copy in new samples
       std::transform(
-        input[channel].begin(),
-        input[channel].end(),
+        input_channel.begin(),
+        input_channel.end(),
         channel_stuff.input_buffer.end() - FRAME_SIZE,
         [](float value) { return static_cast<double>(value); }
       );
@@ -78,14 +96,17 @@ public:
         });
       }
 
-      // Copy one frame of the output buffer to the output
-      std::transform(
-        channel_stuff.output_buffer.begin(),
-        channel_stuff.output_buffer.begin() + FRAME_SIZE,
-        output[channel].begin(),
-        [](double value) { return static_cast<float>(value); }
-      );
+      auto channels_to_output_to = mix_to_mono ? all_channel_ixs : std::vector<size_t>({ channel });
 
+      for (auto &output_channel : channels_to_output_to) {
+        // Copy one frame of the output buffer to the output
+        std::transform(
+          channel_stuff.output_buffer.begin(),
+          channel_stuff.output_buffer.begin() + FRAME_SIZE,
+          output[output_channel].begin(),
+          [](double value) { return static_cast<float>(value); }
+        );
+      }
       // Shift the output one frame
       std::copy(
         channel_stuff.output_buffer.begin() + FRAME_SIZE,
@@ -148,9 +169,10 @@ bool PitchShiftProcessor_process(
   float *output_channels,
   unsigned output_num_channels,
   float target_pitch_shift_factor,
-  float playback_speed
+  float playback_speed,
+  bool mix_to_mono
 ) {
   utils::span2d<float> input(input_channels, input_num_channels, FRAME_SIZE);
   utils::span2d<float> output(output_channels, output_num_channels, FRAME_SIZE);
-  return self->process(input, output, target_pitch_shift_factor, playback_speed);
+  return self->process(input, output, target_pitch_shift_factor, playback_speed, mix_to_mono);
 }

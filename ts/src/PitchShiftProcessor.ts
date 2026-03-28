@@ -6,6 +6,7 @@ class PitchShiftProcessor extends AudioWorkletProcessor implements AudioWorkletP
   private wasmPitchShiftProcessor: WasmPitchShiftProcessor | null = null;
   private playbackSpeed = 1;
   private pitchShiftFactor = 1;
+  private mixToMono = true; // This improves performance on weaker devices
 
   constructor() {
     super();
@@ -33,7 +34,7 @@ class PitchShiftProcessor extends AudioWorkletProcessor implements AudioWorkletP
       return true;
     }
 
-    return this.wasmPitchShiftProcessor.process(inputs[0]!, outputs[0]!, this.pitchShiftFactor, this.playbackSpeed);
+    return this.wasmPitchShiftProcessor.process(inputs[0]!, outputs[0]!, this.pitchShiftFactor, this.playbackSpeed, this.mixToMono);
   }
 }
 
@@ -70,6 +71,7 @@ class WasmPitchShiftProcessor extends WasmAudioProcessor {
     outputChannels: Array<Float32Array>,
     targetPitchShiftFactor: number,
     playbackSpeed: number,
+    mixToMono: boolean,
   ): boolean {
     const { inputChannelsWasmPtr, inputNumChannels, outputChannelsWasmPtr, outputNumChannels } = this.getAudioBuffers(inputChannels.length, outputChannels.length);
 
@@ -83,6 +85,7 @@ class WasmPitchShiftProcessor extends WasmAudioProcessor {
       outputNumChannels,
       targetPitchShiftFactor,
       playbackSpeed,
+      mixToMono,
     );
 
     this.copyOutputsChannelsFromWasm(outputChannels);
