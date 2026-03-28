@@ -12,6 +12,7 @@ import Html exposing
   , label
   , footer
   , button
+  , br
   )
 import Html.Attributes exposing
   ( type_
@@ -64,7 +65,10 @@ type alias FileLoadedModel =
   , fileInfo: FileInfo
   , channelData: Array Float
   , soundwaveDimensions: { height: Float, width: Float }
-  , playbackStatus: { playingStatus: PlayingStatus }
+  , playbackStatus:
+    { playingStatus: PlayingStatus
+    , progressInSamples: Int
+    }
   }
 
 type PlayingStatus = Playing | Paused
@@ -82,6 +86,7 @@ type Msg
   | ChangedPlaybackSpeed Float
   | ClickedPlay
   | ClickedPause
+  | GotPlaybackProgress { progressInSamples: Int }
   | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float }
   | OccuredError String
 
@@ -104,7 +109,7 @@ update msg model =
         , fileInfo = i
         , channelData = fs
         , soundwaveDimensions = { height = 0, width = 0 }
-        , playbackStatus = { playingStatus = Paused }
+        , playbackStatus = { playingStatus = Paused, progressInSamples = 0 }
         }
       , ResizeObserver.observeElement "sound-wave-container"
       )
@@ -128,7 +133,10 @@ update msg model =
     ( ClickedPause, FileLoaded data) ->
       ( FileLoaded
         { data
-        | playbackStatus = { playingStatus = Paused }
+        | playbackStatus =
+            { playingStatus = Paused
+            , progressInSamples = data.playbackStatus.progressInSamples
+            }
         }
       , FromUI.send <| FromUI.PauseRequested
       )
@@ -136,9 +144,23 @@ update msg model =
     ( ClickedPlay, FileLoaded data) ->
       ( FileLoaded
         { data
-        | playbackStatus = { playingStatus = Playing }
+        | playbackStatus =
+            { playingStatus = Playing
+            , progressInSamples = data.playbackStatus.progressInSamples
+            }
         }
       , FromUI.send <| FromUI.PlayRequested
+      )
+
+    ( GotPlaybackProgress { progressInSamples }, FileLoaded data ) ->
+      ( Debug.log "Got progress!" FileLoaded
+        { data
+        | playbackStatus =
+            { playingStatus = data.playbackStatus.playingStatus
+            , progressInSamples = progressInSamples
+            }
+        }
+      , Cmd.none
       )
 
     ( GotResizeEvent ev, FileLoaded data ) -> case ev.elementId of
@@ -179,13 +201,19 @@ subscriptions _ =
           , reverseSamplesURL = info.reverseSamplesURL
           , numSamples = info.numSamples
           }
+
+        Ok (ToUI.PlaybackProgress p) -> GotPlaybackProgress
+          { progressInSamples = p.progressInSamples }
+
         Err e                 -> OccuredError e
+
     , ResizeObserver.resize <| \res -> case res of
         Ok ev -> GotResizeEvent
           { elementId = ev.elementId
           , newWidth = ev.newWidth
           , newHeight = ev.newHeight
           }
+
         Err e -> OccuredError e
     ]
 
@@ -268,7 +296,7 @@ numSamplesToDisplay : Int
 numSamplesToDisplay = 3000 -- Seems to render fast enough, and look OK
 
 soundWaveView : FileLoadedModel -> Html Msg
-soundWaveView { channelData, soundwaveDimensions } =
+soundWaveView { channelData, soundwaveDimensions, playbackStatus } =
   let
     width = soundwaveDimensions.width
     height = soundwaveDimensions.height
@@ -294,6 +322,8 @@ soundWaveView { channelData, soundwaveDimensions } =
           [  ]
         ]
       , text <| "Width: " ++ widthStr ++ ", Height: " ++ heightStr
+      , br [] []
+      , text <| "Progress: " ++ String.fromFloat (100 * toFloat playbackStatus.progressInSamples / toFloat (Array.length channelData)) ++ " %"
       ]
 
 stringifyLinePoints : Array (Float, Float) -> String

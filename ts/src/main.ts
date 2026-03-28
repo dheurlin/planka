@@ -1,8 +1,9 @@
 import { Elm } from './Main.elm';
 
-import type { PlaybackProcessorMessage } from './PlaybackProcessor';
+import type { PlaybackProcessorMessage, MessageFromPlaybackProcessor } from './PlaybackProcessor';
 import type { PitchShiftProcessorMessage } from './PitchShiftProcessor';
 import { ResizeObserverElmIntegration } from './ResizeObserverElmIntegration';
+import { assertExhausted } from './utils';
 
 declare const elmApp: HTMLDivElement;
 
@@ -102,6 +103,20 @@ async function startPlayingAudio(
     } satisfies PlaybackProcessorMessage,
     channelData,
   );
+
+  player.port.onmessage = (ev: MessageEvent<MessageFromPlaybackProcessor>) => {
+    switch (ev.data.tag) {
+      case "ProgressChanged":
+        ui.ports.receiveMessage?.send({
+          tag: "PlaybackProgress",
+          currentProgressInSamples: ev.data.currentProgressInSamples,
+        });
+        break;
+
+      default:
+        assertExhausted(ev.data.tag);
+    }
+  };
 
   cxt.resume();
 

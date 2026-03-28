@@ -12,8 +12,9 @@ receive f = receiveMessage <| D.decodeValue decode >>
     Err e -> f <| Err <| D.errorToString e
   )
 
-type MessageToUI =
-  AudioInfo AudioInfoPayload
+type MessageToUI
+  = AudioInfo AudioInfoPayload
+  | PlaybackProgress PlaybackProgressPayload
 
 type alias AudioInfoPayload =
   { sampleRate: Float
@@ -22,13 +23,18 @@ type alias AudioInfoPayload =
   , numSamples: Int
   }
 
+type alias PlaybackProgressPayload =
+  { progressInSamples: Int }
+
 decode : D.Decoder MessageToUI
 decode = D.field "tag" D.string |> D.andThen
   ( \tag ->
       case tag of
         "AudioInfo" -> D.map AudioInfo decodeAudioInfoPayload
+        "PlaybackProgress" -> D.map PlaybackProgress decodePlaybackProgressPayload
         _ -> D.fail <| "Unknown message tag " ++ quote tag
   )
+
 
 decodeAudioInfoPayload : D.Decoder AudioInfoPayload
 decodeAudioInfoPayload =
@@ -37,6 +43,10 @@ decodeAudioInfoPayload =
     ( D.field "durationInMs" D.int )
     ( D.field "reverseSamplesURL" D.string )
     ( D.field "numSamples" D.int )
+
+decodePlaybackProgressPayload : D.Decoder PlaybackProgressPayload
+decodePlaybackProgressPayload =
+    D.map PlaybackProgressPayload ( D.field "currentProgressInSamples" D.int )
 
 quote : String -> String
 quote s = "\"" ++ s ++ "\""
