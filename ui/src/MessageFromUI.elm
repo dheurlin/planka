@@ -11,6 +11,8 @@ type MessageFromUI
   = FileChosen E.Value
   | PlaybackSpeedChanged Float
   | PitchShiftFactorChanged Float
+  | PauseRequested
+  | PlayRequested
 
 encode: MessageFromUI -> E.Value
 encode msg = case msg of
@@ -28,3 +30,9 @@ encode msg = case msg of
     [ ( "tag", E.string "PlaybackSpeedChanged" )
     , ( "playbackSpeed", E.float p )
     ]
+
+  PauseRequested -> E.object
+    [ ( "tag", E.string "PauseRequested" ) ]
+
+  PlayRequested -> E.object
+    [ ( "tag", E.string "PlayRequested" ) ]

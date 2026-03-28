@@ -20,7 +20,12 @@ public:
     console::log("Sample rate: " + s(m_sample_rate));
   }
 
-  bool process(utils::span2d<float> output, float playback_speed) {
+  bool process(utils::span2d<float> output, float playback_speed, bool is_playing) {
+    if (!is_playing) {
+      std::fill(output[0].begin(), output[output.count() - 1].end(), 0);
+      return true;
+    }
+
     if (m_src_index >= get_input_channel_length()) {
       // TODO Loop?
       std::fill(output[0].begin(), output[output.count() - 1].end(), 0);
@@ -64,11 +69,12 @@ bool PlaybackProcessor_process(
   int input_num_channels,
   float *output_channels,
   int output_num_channels,
-  float playback_speed
+  float playback_speed,
+  bool is_playing
 ) {
   (void)input_channels;
   (void)input_num_channels;
 
   utils::span2d<float> output(output_channels, output_num_channels, FRAME_SIZE);
-  return self->process(output, playback_speed);
+  return self->process(output, playback_speed, is_playing);
 }

@@ -1,10 +1,12 @@
 import { wasmImportObject } from './wasm-helpers';
 import WasmBinary from 'wasm/processors/PlaybackProcessor.wasm';
 import { WasmAudioProcessor } from './WasmAudioProcessor';
+import { assertExhausted } from './utils';
 
 class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
   private wasmPlaybackProcesor: WasmPlaybackProcessor | null = null;
   private playbackSpeed = 1;
+  private isPlaying = false;
 
   constructor() {
     super();
@@ -18,6 +20,18 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
 
         case "PlaybackSpeedChanged":
           self.playbackSpeed = ev.data.newSpeed;
+          break;
+
+        case "Play":
+          self.isPlaying = true;
+          break;
+
+        case "Pause":
+          self.isPlaying = false;
+          break;
+
+        default:
+          assertExhausted(ev.data);
       }
     };
   }
@@ -29,7 +43,7 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
 
     const input = inputs[0]!;
     const output = outputs[0]!;
-    return this.wasmPlaybackProcesor.process(input, output, this.playbackSpeed);
+    return this.wasmPlaybackProcesor.process(input, output, this.playbackSpeed, this.isPlaying);
   }
 }
 
@@ -40,6 +54,10 @@ export type PlaybackProcessorMessage =
   } | {
     tag: 'PlaybackSpeedChanged',
     newSpeed: number,
+  } | {
+    tag: 'Play',
+  } | {
+    tag: 'Pause',
   };
 
 registerProcessor('playback-processor', PlaybackProcessor);
@@ -70,7 +88,12 @@ class WasmPlaybackProcessor extends WasmAudioProcessor {
     return new WasmPlaybackProcessor(instance, audioData);
   }
 
-  public process(inputChannels: Array<Float32Array>, outputChannels: Array<Float32Array>, playbackSpeed: number): boolean {
+  public process(
+    inputChannels: Array<Float32Array>,
+    outputChannels: Array<Float32Array>,
+    playbackSpeed: number,
+    isPlaying: boolean,
+  ): boolean {
     const { inputChannelsWasmPtr, inputNumChannels, outputChannelsWasmPtr, outputNumChannels } = this.getAudioBuffers(inputChannels.length, outputChannels.length);
 
     const res = this.wasmProcessFunc(
@@ -80,6 +103,7 @@ class WasmPlaybackProcessor extends WasmAudioProcessor {
       outputChannelsWasmPtr,
       outputNumChannels,
       playbackSpeed,
+      isPlaying,
     );
 
     this.copyOutputsChannelsFromWasm(outputChannels);

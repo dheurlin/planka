@@ -16,6 +16,7 @@ const ui = Elm.Main!.init({
 
 const _resizer = new ResizeObserverElmIntegration(ui);
 
+// TODO Decoding on message type
 ui.ports.sendMessage?.subscribe(async (message: any) => {
   switch (message.tag) {
     case "FileChosen": {
@@ -51,6 +52,18 @@ ui.ports.sendMessage?.subscribe(async (message: any) => {
       } satisfies PitchShiftProcessorMessage);
 
       break;
+
+    case "PlayRequested":
+      player?.port.postMessage({
+        tag: "Play",
+      } satisfies PlaybackProcessorMessage);
+    break;
+
+    case "PauseRequested":
+      player?.port.postMessage({
+        tag: "Pause",
+      } satisfies PlaybackProcessorMessage);
+    break;
 
     default:
       throw new TypeError(`Unknown message from Elm: ${JSON.stringify(message)}`);

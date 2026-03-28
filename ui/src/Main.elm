@@ -10,6 +10,8 @@ import Html exposing
   , p
   , input
   , label
+  , footer
+  , button
   )
 import Html.Attributes exposing
   ( type_
@@ -17,12 +19,13 @@ import Html.Attributes exposing
   , value
   , for
   , id
+  , class
   )
 
 import Svg as S
 import Svg.Attributes as S
 
-import Html.Events exposing (on)
+import Html.Events exposing (on, onClick)
 import Json.Decode as D
 import Bytes exposing ( Endianness(..) )
 import Array exposing (Array)
@@ -61,7 +64,10 @@ type alias FileLoadedModel =
   , fileInfo: FileInfo
   , channelData: Array Float
   , soundwaveDimensions: { height: Float, width: Float }
+  , playbackStatus: { playingStatus: PlayingStatus }
   }
+
+type PlayingStatus = Playing | Paused
 
 type alias PlaybackParameters =
   { pitchShiftFactor: Float
@@ -74,6 +80,8 @@ type Msg
   | GotFileData (Array Float) -- TODO Just one channel for now
   | ChangedPitchShiftFactor Float
   | ChangedPlaybackSpeed Float
+  | ClickedPlay
+  | ClickedPause
   | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float }
   | OccuredError String
 
@@ -96,6 +104,7 @@ update msg model =
         , fileInfo = i
         , channelData = fs
         , soundwaveDimensions = { height = 0, width = 0 }
+        , playbackStatus = { playingStatus = Paused }
         }
       , ResizeObserver.observeElement "sound-wave-container"
       )
@@ -114,6 +123,22 @@ update msg model =
         | parameters = { playbackSpeed = p, pitchShiftFactor = data.parameters.pitchShiftFactor }
         }
       , FromUI.send <| FromUI.PlaybackSpeedChanged p
+      )
+
+    ( ClickedPause, FileLoaded data) ->
+      ( FileLoaded
+        { data
+        | playbackStatus = { playingStatus = Paused }
+        }
+      , FromUI.send <| FromUI.PauseRequested
+      )
+
+    ( ClickedPlay, FileLoaded data) ->
+      ( FileLoaded
+        { data
+        | playbackStatus = { playingStatus = Playing }
+        }
+      , FromUI.send <| FromUI.PlayRequested
       )
 
     ( GotResizeEvent ev, FileLoaded data ) -> case ev.elementId of
@@ -205,6 +230,7 @@ loadedView m = div []
         }
     ]
   , soundWaveView m
+  , playbackControlsView m
   ]
 
 type alias SliderViewParams msg =
@@ -281,6 +307,28 @@ sampleToLinePoint (width, height) numSamples sampleIndex sample =
   ( (toFloat sampleIndex / toFloat numSamples) * width
   , (height / 2) + sample * height
   )
+
+playbackControlsView : FileLoadedModel -> Html Msg
+playbackControlsView { playbackStatus } =
+  let
+    buttonClickHandler = case playbackStatus.playingStatus of
+      Playing -> ClickedPause
+      Paused -> ClickedPlay
+
+    -- TODO icons?
+    buttonContents = text <| case playbackStatus.playingStatus of
+      Playing -> "Pause"
+      Paused -> "Play"
+
+  in
+    footer
+      [ id "playback-controls"
+      , class "playback-controls"
+      ]
+      [ button
+        [ onClick buttonClickHandler ]
+        [ buttonContents ]
+      ]
 
 fileSelectView : List (Html Msg)
 fileSelectView = 
