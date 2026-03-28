@@ -56,16 +56,7 @@ public:
     std::iota(all_channel_ixs.begin(), all_channel_ixs.end(), 0);
 
     size_t channels_to_process = mix_to_mono ? 1 : input.count();
-    std::vector<float> mono_input(FRAME_SIZE);
-    if (mix_to_mono) {
-      for (size_t sample = 0; sample < FRAME_SIZE; sample++) {
-        float avg = 0;
-        for (size_t channel = 0; channel < input.count(); channel++) {
-          avg += input[channel][sample] / input.count();
-        }
-        mono_input[sample] = avg;
-      }
-    }
+    auto mono_input = mix_channels_to_mono(input);
 
     // Compensate for the effects of playback speed
     auto effective_pitch_shift_factor = target_pitch_shift_factor / playback_speed;
@@ -152,6 +143,18 @@ private:
     browser_assert(m_channels_stuff->size() == num_channels && "Channel number missmatch!");
 
     return *m_channels_stuff;
+  }
+
+  std::vector<float> mix_channels_to_mono(utils::span2d<float> inputs) {
+    std::vector<float> mono_channel(FRAME_SIZE);
+    for (size_t sample = 0; sample < FRAME_SIZE; sample++) {
+      float avg = 0;
+      for (size_t channel = 0; channel < inputs.count(); channel++) {
+        avg += inputs[channel][sample] / inputs.count();
+      }
+      mono_channel[sample] = avg;
+    }
+    return mono_channel;
   }
 };
 
