@@ -293,7 +293,7 @@ targetValueFloatDecoder =
     D.at ["target", "value"] D.string |> D.andThen decodeFloat
 
 numSamplesToDisplay : Int
-numSamplesToDisplay = 3000 -- Seems to render fast enough, and look OK
+numSamplesToDisplay = 10000 -- Seems to render fast enough, and look OK
 
 soundWaveView : FileLoadedModel -> Html Msg
 soundWaveView { channelData, soundwaveDimensions, playbackStatus } =
