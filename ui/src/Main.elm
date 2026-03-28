@@ -242,7 +242,8 @@ targetValueFloatDecoder =
   in
     D.at ["target", "value"] D.string |> D.andThen decodeFloat
 
-numSamplesToDisplay = 3000
+numSamplesToDisplay : Int
+numSamplesToDisplay = 3000 -- Seems to render fast enough, and look OK
 
 soundWaveView : FileLoadedModel -> Html Msg
 soundWaveView { channelData, soundwaveDimensions } =
@@ -251,7 +252,7 @@ soundWaveView { channelData, soundwaveDimensions } =
     height = soundwaveDimensions.height
     widthStr = String.fromFloat width
     heightStr = String.fromFloat height
-    downSamplingStride = toFloat (Array.length channelData) / numSamplesToDisplay
+    downSamplingStride = toFloat (Array.length channelData) / toFloat numSamplesToDisplay
     samplesToDisplay = Array.initialize numSamplesToDisplay <| \i ->
       Array.get (floor <| toFloat i * downSamplingStride) channelData |> Maybe.withDefault 0
     linePoints = samplesToLinePoints (width, height) samplesToDisplay
