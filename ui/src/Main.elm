@@ -65,6 +65,7 @@ type alias FileLoadedModel =
   , fileInfo: FileInfo
   , channelData: Array Float
   , soundwaveDimensions: { height: Float, width: Float }
+  , displayParams: SoundwaveDisplayParams
   , playbackStatus:
     { playingStatus: PlayingStatus
     , progressInSamples: Int
@@ -76,6 +77,11 @@ type PlayingStatus = Playing | Paused
 type alias PlaybackParameters =
   { pitchShiftFactor: Float
   , playbackSpeed: Float
+  }
+
+type alias SoundwaveDisplayParams =
+  { zoomLevel: Float
+  , sampleOffset: Int
   }
 
 type Msg
@@ -109,6 +115,7 @@ update msg model =
         , fileInfo = i
         , channelData = fs
         , soundwaveDimensions = { height = 0, width = 0 }
+        , displayParams = { sampleOffset = 0, zoomLevel = 1 }
         , playbackStatus = { playingStatus = Paused, progressInSamples = 0 }
         }
       , ResizeObserver.observeElement "sound-wave-container"
@@ -296,16 +303,17 @@ numSamplesToDisplay : Int
 numSamplesToDisplay = 10000 -- Seems to render fast enough, and look OK
 
 soundWaveView : FileLoadedModel -> Html Msg
-soundWaveView { channelData, soundwaveDimensions, playbackStatus } =
+soundWaveView { channelData, soundwaveDimensions, playbackStatus, displayParams } =
   let
+    { zoomLevel, sampleOffset } = displayParams
     width = soundwaveDimensions.width
     height = soundwaveDimensions.height
     widthStr = String.fromFloat width
     heightStr = String.fromFloat height
     downSamplingStride = toFloat (Array.length channelData) / toFloat numSamplesToDisplay
     samplesToDisplay = Array.initialize numSamplesToDisplay <| \i ->
-      Array.get (floor <| toFloat i * downSamplingStride) channelData |> Maybe.withDefault 0
-    linePoints = samplesToLinePoints (width, height) samplesToDisplay
+      Array.get (sampleOffset + (floor <| toFloat i * downSamplingStride / zoomLevel)) channelData |> Maybe.withDefault 0
+    linePoints = samplesToLinePoints (width, height) displayParams samplesToDisplay
   in
     div
       [ id "sound-wave-container" ]
@@ -329,13 +337,13 @@ soundWaveView { channelData, soundwaveDimensions, playbackStatus } =
 stringifyLinePoints : Array (Float, Float) -> String
 stringifyLinePoints = Array.foldl (\(x, y) acc -> acc ++ (String.fromFloat x) ++ "," ++ (String.fromFloat y) ++ " ") ""
 
-samplesToLinePoints : (Float, Float) -> Array Float -> Array (Float, Float)
-samplesToLinePoints dims arr = Array.indexedMap (sampleToLinePoint dims (Array.length arr)) arr
+samplesToLinePoints : (Float, Float) -> SoundwaveDisplayParams -> Array Float -> Array (Float, Float)
+samplesToLinePoints dims p arr = Array.indexedMap (sampleToLinePoint dims p (Array.length arr)) arr
 
-sampleToLinePoint : (Float, Float) -> Int -> Int -> Float -> (Float, Float)
-sampleToLinePoint (width, height) numSamples sampleIndex sample =
-  ( (toFloat sampleIndex / toFloat numSamples) * width
-  , (height / 2) + sample * height
+sampleToLinePoint : (Float, Float) -> SoundwaveDisplayParams -> Int -> Int -> Float -> (Float, Float)
+sampleToLinePoint (width, height) {zoomLevel, sampleOffset} numSamples sampleIndex sample =
+  ( (toFloat (sampleIndex - sampleOffset) / toFloat numSamples) * width * zoomLevel
+  , (height / 2) + sample * height -- TODO Should it be minus here? Since 0 is on top
   )
 
 playbackControlsView : FileLoadedModel -> Html Msg
