@@ -36,6 +36,7 @@ import MessageFromUI as FromUI
 import MessageToUI as ToUI
 
 import ResizeObserver
+import Gestures
 import Utils
 import MockData.MockSamples
 
@@ -71,6 +72,7 @@ type alias FileLoadedModel =
     { playingStatus: PlayingStatus
     , progressInSamples: Int
     }
+  , gestureState: Gestures.PointerState
   }
 
 type PlayingStatus = Playing | Paused
@@ -95,6 +97,7 @@ type Msg
   | ClickedPause
   | GotPlaybackProgress { progressInSamples: Int }
   | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float }
+  | GotGestureEvent Gestures.PointerMsg
   | OccuredError String
 
 init : ( List String ) -> ( Model, Cmd Msg )
@@ -114,6 +117,7 @@ init flags =
             , fileInfo = { durationInMs = 1000, numSamples = samplesLen, reverseSamplesURL = "www.svt.se", sampleRate = 48000 }
             , displayParams = { zoomLevel = 1, sampleOffset = 0 }
             , soundwaveDimensions = { width = 0, height = 0 }
+            , gestureState = Gestures.None
             }
           , ResizeObserver.observeElement "sound-wave-container"
           )
@@ -138,6 +142,7 @@ update msg model =
         , soundwaveDimensions = { height = 0, width = 0 }
         , displayParams = { sampleOffset = 0, zoomLevel = 1 }
         , playbackStatus = { playingStatus = Paused, progressInSamples = 0 }
+        , gestureState = Gestures.None
         }
       , ResizeObserver.observeElement "sound-wave-container"
       )
@@ -201,6 +206,20 @@ update msg model =
         )
 
       _ -> ( model, Cmd.none )
+
+    ( GotGestureEvent e, FileLoaded data ) ->
+      let
+          newGestureState = Gestures.updateState e data.gestureState
+          _ = case newGestureState of
+              Gestures.PointingDouble p -> Debug.log "moved: " p.distanceMoved
+              Gestures.PointingSingle p -> Debug.log "moved: " p.distanceMoved
+              _ -> { x = 0, y = 0 }
+      in
+        ( FileLoaded 
+          { data
+          | gestureState = newGestureState
+        }
+        , Cmd.none )
 
     ( OccuredError e, _) -> ( Debug.log e model, Cmd.none ) -- TODO Better error handling?
 
@@ -337,7 +356,11 @@ soundWaveView { channelData, soundwaveDimensions, playbackStatus, displayParams 
     linePoints = samplesToLinePoints (width, height) displayParams samplesToDisplay
   in
     div
-      [ id "sound-wave-container" ]
+      [ id "sound-wave-container"
+      , Gestures.onPointerDown GotGestureEvent
+      , Gestures.onPointerUp GotGestureEvent
+      , Gestures.onPointerMove GotGestureEvent
+      ]
       [ S.svg
         [ S.class "sound-wave-svg"
         , S.width widthStr
