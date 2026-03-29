@@ -39,6 +39,7 @@ public:
 
     if (m_src_index >= get_input_channel_length()) {
       // TODO Loop?
+      report_current_progress_in_samples(m_src_index);
       std::fill(output[0].begin(), output[output.count() - 1].end(), 0);
       return true;
     }
