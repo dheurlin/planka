@@ -207,19 +207,7 @@ update msg model =
 
       _ -> ( model, Cmd.none )
 
-    ( GotGestureEvent e, FileLoaded data ) ->
-      let
-          newGestureState = Gestures.updateState e data.gestureState
-          _ = case newGestureState of
-              Gestures.PointingDouble p -> Debug.log "moved: " p.distanceMoved
-              Gestures.PointingSingle p -> Debug.log "moved: " p.distanceMoved
-              _ -> { x = 0, y = 0 }
-      in
-        ( FileLoaded 
-          { data
-          | gestureState = newGestureState
-        }
-        , Cmd.none )
+    ( GotGestureEvent e, FileLoaded data ) -> ( FileLoaded <| updateOnGesture e data, Cmd.none )
 
     ( OccuredError e, _) -> ( Debug.log e model, Cmd.none ) -- TODO Better error handling?
 
@@ -402,6 +390,43 @@ sampleToLinePoint dims params numSamples sampleIndex sample =
 sampleIndexToXCoord : (Float, Float) -> SoundwaveDisplayParams -> Int -> Int -> Float
 sampleIndexToXCoord (width, height) {zoomLevel, sampleOffset} numSamples sampleIndex =
   (toFloat (sampleIndex - sampleOffset) / toFloat numSamples) * width * zoomLevel
+
+updateOnGesture : Gestures.PointerMsg -> FileLoadedModel -> FileLoadedModel
+updateOnGesture e data =
+  let
+    newGestureState = Gestures.updateState e data.gestureState
+
+    width = data.soundwaveDimensions.width
+
+    -- TODO Work with absolute diffs, but remember pre-zooming level in a "ZoomingState"
+    newZoomLevel = case newGestureState of
+      Gestures.PointingDouble p -> case p.distanceZoomed >= 0 of
+        True ->  oldZoomLevel * (width / (width - p.distanceZoomed))
+        False -> max 1 oldZoomLevel * ((width + p.distanceZoomed) / width)
+
+      _ -> oldZoomLevel
+
+    -- TODO Work with absolute diffs, but remember pre-panning level in a "PanningState"
+    newOffset = case newGestureState of
+      Gestures.PointingSingle p ->
+        max 0 oldOffset + round ((p.distanceMoved.x / width) * toFloat numSamplesToDisplay)
+
+      _ -> oldOffset
+
+    oldDisplayParams = data.displayParams
+    oldZoomLevel = oldDisplayParams.zoomLevel
+    oldOffset = oldDisplayParams.sampleOffset
+
+  in
+    { data
+    | gestureState = newGestureState
+    , displayParams =
+      { oldDisplayParams
+      | zoomLevel = newZoomLevel
+      , sampleOffset = newOffset
+      }
+    }
+
 
 playbackControlsView : FileLoadedModel -> Html Msg
 playbackControlsView { playbackStatus } =
