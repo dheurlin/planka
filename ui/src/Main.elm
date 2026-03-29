@@ -330,7 +330,7 @@ stringifyLinePoints : Array (Float, Float) -> String
 stringifyLinePoints = Array.foldl (\(x, y) acc -> acc ++ (String.fromFloat x) ++ "," ++ (String.fromFloat y) ++ " ") ""
 
 samplesToLinePoints : (Float, Float) -> Array Float -> Array (Float, Float)
-samplesToLinePoints dims arr = Array.indexedMap (\i s -> sampleToLinePoint dims (Array.length arr) i s) arr
+samplesToLinePoints dims arr = Array.indexedMap (sampleToLinePoint dims (Array.length arr)) arr
 
 sampleToLinePoint : (Float, Float) -> Int -> Int -> Float -> (Float, Float)
 sampleToLinePoint (width, height) numSamples sampleIndex sample =
