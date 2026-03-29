@@ -21,6 +21,7 @@ import Html.Attributes exposing
   , for
   , id
   , class
+  , attribute
   )
 
 import Svg as S
@@ -329,6 +330,15 @@ soundWaveView { channelData, soundwaveDimensions, playbackStatus, displayParams 
           ]
           [  ]
         ]
+      , div
+        [ class "progress-indicator"
+        , attribute "style" <| "--x-position: " ++
+          ( sampleIndexToXCoord (width, height) displayParams (Array.length channelData) playbackStatus.progressInSamples
+          |> String.fromFloat
+          |> \s -> s ++ "px;"
+          )
+        ]
+        [ ]
       , text <| "Width: " ++ widthStr ++ ", Height: " ++ heightStr
       , br [] []
       , text <| "Progress: " ++ String.fromFloat (100 * toFloat playbackStatus.progressInSamples / toFloat (Array.length channelData)) ++ " %"
@@ -341,10 +351,14 @@ samplesToLinePoints : (Float, Float) -> SoundwaveDisplayParams -> Array Float ->
 samplesToLinePoints dims p arr = Array.indexedMap (sampleToLinePoint dims p (Array.length arr)) arr
 
 sampleToLinePoint : (Float, Float) -> SoundwaveDisplayParams -> Int -> Int -> Float -> (Float, Float)
-sampleToLinePoint (width, height) {zoomLevel, sampleOffset} numSamples sampleIndex sample =
-  ( (toFloat (sampleIndex - sampleOffset) / toFloat numSamples) * width * zoomLevel
-  , (height / 2) + sample * height -- TODO Should it be minus here? Since 0 is on top
+sampleToLinePoint dims params numSamples sampleIndex sample =
+  ( sampleIndexToXCoord dims params numSamples sampleIndex
+  , (Tuple.second dims / 2) + sample * Tuple.second dims -- TODO Should it be minus here? Since 0 is on top
   )
+
+sampleIndexToXCoord : (Float, Float) -> SoundwaveDisplayParams -> Int -> Int -> Float
+sampleIndexToXCoord (width, height) {zoomLevel, sampleOffset} numSamples sampleIndex =
+  (toFloat (sampleIndex - sampleOffset) / toFloat numSamples) * width * zoomLevel
 
 playbackControlsView : FileLoadedModel -> Html Msg
 playbackControlsView { playbackStatus } =

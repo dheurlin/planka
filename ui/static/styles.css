@@ -29,4 +29,14 @@ body {
     stroke: green;
     stroke-width: 1;
   }
+
+  .progress-indicator {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--x-position);
+
+    width: 3px;
+    background-color: red;
+  }
 }
