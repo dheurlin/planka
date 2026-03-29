@@ -1,7 +1,7 @@
 import ElmPlugin from 'esbuild-plugin-elm';
 import * as esbuild from 'esbuild';
 
-const options: esbuild.BuildOptions = {
+const options = (useMockSamples: boolean) => ({
   entryPoints: [
     'src/main.ts',
     'src/PlaybackProcessor.ts',
@@ -14,15 +14,18 @@ const options: esbuild.BuildOptions = {
   bundle: true,
   outbase: 'src',
   outdir: '../dist',
+  define: { USE_MOCK_SAMPLES: useMockSamples ? 'true' : 'false' },
   plugins: [
     ElmPlugin({
       cwd: '../ui',
     }),
   ],
-}
+} satisfies esbuild.BuildOptions);
+
+const useMockSamples = process.argv.includes('--use-mock-samples');
 
 if (process.argv.includes('--watch')) {
-  await esbuild.context(options).then((cxt) => cxt.watch());
+  await esbuild.context(options(useMockSamples)).then((cxt) => cxt.watch());
 } else {
-  await esbuild.build(options);
+  await esbuild.build(options(useMockSamples));
 }

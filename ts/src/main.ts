@@ -5,14 +5,21 @@ import type { PitchShiftProcessorMessage } from './PitchShiftProcessor';
 import { ResizeObserverElmIntegration } from './ResizeObserverElmIntegration';
 import { assertExhausted } from './utils';
 
+declare const USE_MOCK_SAMPLES: boolean; // Injected by esbuild
 declare const elmApp: HTMLDivElement;
 
 let cxt = new AudioContext();
 let player: AudioWorkletNode | undefined;
 let pitchShifter: AudioWorkletNode | undefined;
 
+const uiFlags = [];
+if (USE_MOCK_SAMPLES) {
+  uiFlags.push("UseMockSamples");
+}
+
 const ui = Elm.Main!.init({
   node: elmApp,
+  flags: uiFlags,
 });
 
 const _resizer = new ResizeObserverElmIntegration(ui);

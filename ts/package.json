@@ -10,7 +10,8 @@
     "build": "node esbuild.mts",
     "build:watch": "node esbuild.mts --watch",
     "typecheck:watch": "tsc --watch --noemit",
-    "dev": "concurrently -n 'SERVER,ESBUILD,TSC' -c 'bgYellow.black,bgCyan.black,bgMagenta' 'npm run serve' 'npm run build:watch' 'npm run typecheck:watch'"
+    "dev": "concurrently -n 'SERVER,ESBUILD,TSC' -c 'bgYellow.black,bgCyan.black,bgMagenta' 'npm run serve' 'npm run build:watch' 'npm run typecheck:watch'",
+    "dev:mock": "concurrently -n 'SERVER,ESBUILD,TSC' -c 'bgYellow.black,bgCyan.black,bgMagenta' 'npm run serve' 'node esbuild.mts --watch --use-mock-samples' 'npm run typecheck:watch'"
   },
   "keywords": [],
   "author": "",
