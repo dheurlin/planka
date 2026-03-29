@@ -4,6 +4,7 @@ import Http
 
 import Bytes.Decode as BD
 import Bytes as B
+import Base64.Decode as B64
 
 import Array exposing (Array)
 import Array as A
@@ -43,3 +44,16 @@ bdListReverseStep decoder (n, xs) =
   else
     BD.map (\x -> BD.Loop (n - 1, x :: xs)) decoder
 
+decodeSamplesB64 : String -> Int -> Result String (Array Float)
+decodeSamplesB64 b64 numSamples =
+  B64.decode B64.bytes b64
+    |> Result.mapError (\err ->
+      case err of
+        B64.ValidationError -> "B64 decoding failed: Validation error"
+        B64.InvalidByteSequence -> "B64 decoding failed: Invalid bytes sequence"
+    )
+    |> Result.andThen (\bytes ->
+      Result.fromMaybe "Error decoding bytes" <|
+        BD.decode (floatListReverseDecoder numSamples) bytes
+    )
+    |> Result.map (Array.fromList << List.reverse)

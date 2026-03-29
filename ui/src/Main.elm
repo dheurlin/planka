@@ -36,10 +36,10 @@ import MessageFromUI as FromUI
 import MessageToUI as ToUI
 
 import ResizeObserver
-
 import Utils
+import MockData.MockSamples
 
-main : Program () Model Msg
+main : Program (List String) Model Msg
 main =
   Browser.element
   { init = init
@@ -97,8 +97,28 @@ type Msg
   | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float }
   | OccuredError String
 
-init : () -> ( Model, Cmd Msg )
-init _ = (FileNotLoaded, Cmd.none)
+init : ( List String ) -> ( Model, Cmd Msg )
+init flags =
+  if List.member "UseMockSamples" flags then
+    let
+      samplesLen = MockData.MockSamples.b64CodedMockSamplesByteLength // 4
+      mockSamplesResult = Utils.decodeSamplesB64 MockData.MockSamples.b64CodedMockSamples samplesLen
+    in
+      case mockSamplesResult of
+        Err e -> ( FileNotLoaded, Cmd.map (always OccuredError <| "Error decoding mock samples: " ++ e ) Cmd.none)
+        Ok arr ->
+          ( FileLoaded
+            { parameters = { pitchShiftFactor = 1, playbackSpeed = 1 }
+            , playbackStatus = { playingStatus = Paused, progressInSamples = 0 }
+            , channelData = arr
+            , fileInfo = { durationInMs = 1000, numSamples = samplesLen, reverseSamplesURL = "www.svt.se", sampleRate = 48000 }
+            , displayParams = { zoomLevel = 1, sampleOffset = 0 }
+            , soundwaveDimensions = { width = 0, height = 0 }
+            }
+          , ResizeObserver.observeElement "sound-wave-container"
+          )
+  else
+    ( FileNotLoaded, Cmd.none )
 
 update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
