@@ -57,31 +57,45 @@ type alias FileLoadedModel =
   { parameters: PlaybackParameters
   , fileInfo: FileInfo
   , soundwaveDimensions: { height: Float, width: Float }
-  , displayParams: SoundwaveDisplayParams
   , playbackStatus:
     { playingStatus: PlayingStatus
     , progressInSamples: Int
     }
   , gestureState: Gestures.PointerState
   , zoomingState: ZoomingState
+  , panningState: PanningState
   }
 
 type ZoomingState
   = NotZooming { zoomLevel: Float }
   | Zooming { originalZoomLevel: Float, currentZoomLevel: Float }
 
+getZoomLevel : FileLoadedModel -> Float
+getZoomLevel { zoomingState } = case zoomingState of
+  NotZooming { zoomLevel } -> zoomLevel
+  Zooming { currentZoomLevel } -> currentZoomLevel
+
+type PanningState
+  = NotPanning { sampleOffset: Int }
+  | Panning { originalSampleOffset: Int, currentSampleOffset: Int }
+
+getSampleOffset : FileLoadedModel -> Int
+getSampleOffset { panningState } = case panningState of
+  NotPanning { sampleOffset } -> sampleOffset
+  Panning { currentSampleOffset } -> currentSampleOffset
+
 initialFileLoadedModel : FileInfo -> FileLoadedModel
 initialFileLoadedModel i =
   { parameters = { playbackSpeed = 1, pitchShiftFactor = 1 }
   , fileInfo = i
   , soundwaveDimensions = { height = 0, width = 0 }
-  , displayParams = { sampleOffset = 0 }
   , playbackStatus =
       { playingStatus = Paused
       , progressInSamples = 0
       }
   , gestureState = Gestures.None
   , zoomingState = NotZooming { zoomLevel = 1 }
+  , panningState = NotPanning { sampleOffset = 0 }
   }
 
 type PlayingStatus = Playing | Paused
@@ -91,8 +105,6 @@ type alias PlaybackParameters =
   , playbackSpeed: Float
   }
 
-type alias SoundwaveDisplayParams =
-  { sampleOffset: Int }
 
 type Msg
   = GotFileSelectMsg FileSelect.Msg
@@ -304,14 +316,11 @@ numSamplesToDisplay : Int
 numSamplesToDisplay = 10000 -- Seems to render fast enough, and look OK
 
 soundWaveView : FileLoadedModel -> Html Msg
-soundWaveView { fileInfo, soundwaveDimensions, playbackStatus, displayParams, zoomingState } =
+soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
   let
     channelData = fileInfo.channelData
-    { sampleOffset } = displayParams
-    zoomLevel = case zoomingState of
-      NotZooming n -> n.zoomLevel
-      Zooming { currentZoomLevel } -> currentZoomLevel
-
+    sampleOffset = getSampleOffset model
+    zoomLevel = getZoomLevel model
     width = soundwaveDimensions.width
     height = soundwaveDimensions.height
     widthStr = String.fromFloat width
@@ -370,65 +379,55 @@ sampleIndexToXCoord (width, height) zoomLevel sampleOffset numSamples sampleInde
   (toFloat (sampleIndex - sampleOffset) / toFloat numSamples) * width * zoomLevel
 
 updateOnGesture : Gestures.PointerMsg -> FileLoadedModel -> FileLoadedModel
-updateOnGesture e ({ zoomingState, gestureState, displayParams, soundwaveDimensions } as data) =
+updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensions } as data) =
   let
     newGestureState = Gestures.updateState e gestureState
     width = soundwaveDimensions.width
-    oldDisplayParams = displayParams
-    -- oldZoomLevel = oldDisplayParams.zoomLevel
-    oldOffset = oldDisplayParams.sampleOffset
-    updateZoomLevel params z = { params | zoomLevel = z }
   in
-    case (zoomingState, newGestureState) of
-      ( NotZooming { zoomLevel }, Gestures.PointingDouble _ ) ->
+    case (zoomingState, panningState, newGestureState) of
+      ( NotZooming { zoomLevel }, _, Gestures.PointingDouble _ ) ->
         { data
         | zoomingState = Zooming { originalZoomLevel = zoomLevel, currentZoomLevel = zoomLevel }
         , gestureState = newGestureState
         }
-      ( Zooming { originalZoomLevel, currentZoomLevel }, Gestures.PointingDouble p ) ->
+      ( Zooming { originalZoomLevel }, _ ,Gestures.PointingDouble p ) ->
         let
-            zoomSpeed = 2
-            oldWidth = width
-            newWidth = oldWidth + (p.distanceZoomed * zoomSpeed)
-            newZoomLevel = max 1 <| originalZoomLevel * newWidth / oldWidth
+            newWidth = width + (p.distanceZoomed)
+            newZoomLevel = max 1 <| originalZoomLevel * newWidth / width
         in
           { data
           | zoomingState = Zooming { originalZoomLevel = originalZoomLevel, currentZoomLevel = newZoomLevel }
           , gestureState = newGestureState
           }
-      ( Zooming { currentZoomLevel }, _ ) ->
+      ( Zooming { currentZoomLevel }, _ , _) ->
         { data
         | zoomingState = NotZooming { zoomLevel = currentZoomLevel }
         , gestureState = newGestureState
         }
+
+      ( _, NotPanning { sampleOffset }, Gestures.PointingSingle _) ->
+        { data
+        | panningState = Panning { originalSampleOffset = sampleOffset, currentSampleOffset = sampleOffset }
+        , gestureState = newGestureState
+        }
+
+      ( _, Panning { originalSampleOffset }, Gestures.PointingSingle p) ->
+        let
+          panningSpeed = 1 / 15 -- found experimentally, no idea why this works ¯\_(ツ)_/¯
+          samplesMoved = round <| (toFloat data.fileInfo.numSamples / (width * getZoomLevel data)) * p.distanceMoved.x * panningSpeed
+        in
+          { data
+          | panningState = Panning { originalSampleOffset = originalSampleOffset, currentSampleOffset = originalSampleOffset + samplesMoved }
+          , gestureState = newGestureState
+          }
+
+      ( _, Panning { currentSampleOffset }, Gestures.None) ->
+        { data
+        | panningState = NotPanning { sampleOffset = currentSampleOffset }
+        , gestureState = newGestureState
+        }
+
       _ -> { data | gestureState = newGestureState }
-
-    -- TODO Work with absolute diffs, but remember pre-zooming level in a "ZoomingState"
-    -- newZoomLevel = case newGestureState of
-    --   Gestures.PointingDouble p -> if p.distanceZoomed >= 0
-    --     then oldZoomLevel * (width / (width - p.distanceZoomed))
-    --     else max 1 oldZoomLevel * ((width + p.distanceZoomed) / width)
-
-    --   _ -> oldZoomLevel
-
-    -- -- TODO Work with absolute diffs, but remember pre-panning level in a "PanningState"
-    -- newOffset = case newGestureState of
-    --   Gestures.PointingSingle p ->
-    --     max 0 oldOffset + round ((p.distanceMoved.x / width) * toFloat numSamplesToDisplay)
-
-    --   _ -> oldOffset
-
-
-  -- in
-  --   { data
-  --   | gestureState = newGestureState
-  --   , displayParams =
-  --     { oldDisplayParams
-  --     | zoomLevel = newZoomLevel
-  --     , sampleOffset = newOffset
-  --     }
-  --   }
-
 
 playbackControlsView : FileLoadedModel -> Html Msg
 playbackControlsView { playbackStatus } =

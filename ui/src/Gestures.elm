@@ -56,15 +56,14 @@ updateState ev state = case (ev, state) of
           , distanceZoomed = 0
           }
 
-  ( GotPointerMove { pointerId, clientCoords }, PointingSingle p ) ->
+  ( GotPointerMove { clientCoords }, PointingSingle p ) ->
     let
       newPointer = updatePointerPosition clientCoords p.pointer
     in
        PointingSingle
             { p
             | pointer = newPointer
-            -- TODO Direction of diff?
-            , distanceMoved = coordDiff p.pointer.position clientCoords 
+            , distanceMoved = coordDiff p.pointer.startPosition clientCoords 
             }
 
   ( GotPointerMove { pointerId, clientCoords }, PointingDouble p ) ->
