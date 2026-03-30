@@ -92,7 +92,7 @@ updateState ev state = case (ev, state) of
 
   ( GotPointerUp { pointerId }, PointingDouble p ) ->
     let
-        pointerToUse = if pointerId == p.pointer1.pointerId then p.pointer1 else p.pointer2
+        pointerToUse = if pointerId == p.pointer1.pointerId then p.pointer2 else p.pointer1
     in
       PointingSingle
         { pointer = pointerToUse
