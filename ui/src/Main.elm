@@ -63,19 +63,25 @@ type alias FileLoadedModel =
     , progressInSamples: Int
     }
   , gestureState: Gestures.PointerState
+  , zoomingState: ZoomingState
   }
+
+type ZoomingState
+  = NotZooming { zoomLevel: Float }
+  | Zooming { originalZoomLevel: Float, currentZoomLevel: Float }
 
 initialFileLoadedModel : FileInfo -> FileLoadedModel
 initialFileLoadedModel i =
   { parameters = { playbackSpeed = 1, pitchShiftFactor = 1 }
   , fileInfo = i
   , soundwaveDimensions = { height = 0, width = 0 }
-  , displayParams = { zoomLevel = 1, sampleOffset = 0 }
+  , displayParams = { sampleOffset = 0 }
   , playbackStatus =
       { playingStatus = Paused
       , progressInSamples = 0
       }
   , gestureState = Gestures.None
+  , zoomingState = NotZooming { zoomLevel = 1 }
   }
 
 type PlayingStatus = Playing | Paused
@@ -86,9 +92,7 @@ type alias PlaybackParameters =
   }
 
 type alias SoundwaveDisplayParams =
-  { zoomLevel: Float
-  , sampleOffset: Int
-  }
+  { sampleOffset: Int }
 
 type Msg
   = GotFileSelectMsg FileSelect.Msg
@@ -300,10 +304,14 @@ numSamplesToDisplay : Int
 numSamplesToDisplay = 10000 -- Seems to render fast enough, and look OK
 
 soundWaveView : FileLoadedModel -> Html Msg
-soundWaveView { fileInfo, soundwaveDimensions, playbackStatus, displayParams } =
+soundWaveView { fileInfo, soundwaveDimensions, playbackStatus, displayParams, zoomingState } =
   let
     channelData = fileInfo.channelData
-    { zoomLevel, sampleOffset } = displayParams
+    { sampleOffset } = displayParams
+    zoomLevel = case zoomingState of
+      NotZooming n -> n.zoomLevel
+      Zooming { currentZoomLevel } -> currentZoomLevel
+
     width = soundwaveDimensions.width
     height = soundwaveDimensions.height
     widthStr = String.fromFloat width
@@ -311,7 +319,7 @@ soundWaveView { fileInfo, soundwaveDimensions, playbackStatus, displayParams } =
     downSamplingStride = toFloat (Array.length channelData) / toFloat numSamplesToDisplay
     samplesToDisplay = Array.initialize numSamplesToDisplay <| \i ->
       Array.get (sampleOffset + (floor <| toFloat i * downSamplingStride / zoomLevel)) channelData |> Maybe.withDefault 0
-    linePoints = samplesToLinePoints (width, height) displayParams samplesToDisplay
+    linePoints = samplesToLinePoints (width, height) zoomLevel sampleOffset samplesToDisplay
   in
     div
       [ id "sound-wave-container"
@@ -334,7 +342,7 @@ soundWaveView { fileInfo, soundwaveDimensions, playbackStatus, displayParams } =
       , div
         [ class "progress-indicator"
         , attribute "style" <| "--x-position: " ++
-          ( sampleIndexToXCoord (width, height) displayParams (Array.length channelData) playbackStatus.progressInSamples
+          ( sampleIndexToXCoord (width, height) zoomLevel sampleOffset (Array.length channelData) playbackStatus.progressInSamples
           |> String.fromFloat
           |> \s -> s ++ "px;"
           )
@@ -348,54 +356,77 @@ soundWaveView { fileInfo, soundwaveDimensions, playbackStatus, displayParams } =
 stringifyLinePoints : Array (Float, Float) -> String
 stringifyLinePoints = Array.foldl (\(x, y) acc -> acc ++ (String.fromFloat x) ++ "," ++ (String.fromFloat y) ++ " ") ""
 
-samplesToLinePoints : (Float, Float) -> SoundwaveDisplayParams -> Array Float -> Array (Float, Float)
-samplesToLinePoints dims p arr = Array.indexedMap (sampleToLinePoint dims p (Array.length arr)) arr
+samplesToLinePoints : (Float, Float) -> Float -> Int -> Array Float -> Array (Float, Float)
+samplesToLinePoints dims zoomLevel sampleOffset arr = Array.indexedMap (sampleToLinePoint dims zoomLevel sampleOffset (Array.length arr)) arr
 
-sampleToLinePoint : (Float, Float) -> SoundwaveDisplayParams -> Int -> Int -> Float -> (Float, Float)
-sampleToLinePoint dims params numSamples sampleIndex sample =
-  ( sampleIndexToXCoord dims params numSamples sampleIndex
+sampleToLinePoint : (Float, Float) -> Float -> Int -> Int -> Int -> Float -> (Float, Float)
+sampleToLinePoint dims zoomLevel sampleOffset numSamples sampleIndex sample =
+  ( sampleIndexToXCoord dims zoomLevel sampleOffset numSamples sampleIndex
   , (Tuple.second dims / 2) + sample * Tuple.second dims -- TODO Should it be minus here? Since 0 is on top
   )
 
-sampleIndexToXCoord : (Float, Float) -> SoundwaveDisplayParams -> Int -> Int -> Float
-sampleIndexToXCoord (width, height) {zoomLevel, sampleOffset} numSamples sampleIndex =
+sampleIndexToXCoord : (Float, Float) -> Float -> Int -> Int -> Int -> Float
+sampleIndexToXCoord (width, height) zoomLevel sampleOffset numSamples sampleIndex =
   (toFloat (sampleIndex - sampleOffset) / toFloat numSamples) * width * zoomLevel
 
 updateOnGesture : Gestures.PointerMsg -> FileLoadedModel -> FileLoadedModel
-updateOnGesture e data =
+updateOnGesture e ({ zoomingState, gestureState, displayParams, soundwaveDimensions } as data) =
   let
-    newGestureState = Gestures.updateState e data.gestureState
-
-    width = data.soundwaveDimensions.width
+    newGestureState = Gestures.updateState e gestureState
+    width = soundwaveDimensions.width
+    oldDisplayParams = displayParams
+    -- oldZoomLevel = oldDisplayParams.zoomLevel
+    oldOffset = oldDisplayParams.sampleOffset
+    updateZoomLevel params z = { params | zoomLevel = z }
+  in
+    case (zoomingState, newGestureState) of
+      ( NotZooming { zoomLevel }, Gestures.PointingDouble _ ) ->
+        { data
+        | zoomingState = Zooming { originalZoomLevel = zoomLevel, currentZoomLevel = zoomLevel }
+        , gestureState = newGestureState
+        }
+      ( Zooming { originalZoomLevel }, Gestures.PointingDouble p ) ->
+        let
+            newZoomLevel = Debug.log "new zoom: " <| if p.distanceZoomed >= 0
+              then originalZoomLevel * (width / (width - p.distanceZoomed))
+              else max 1 <| originalZoomLevel * ((width + p.distanceZoomed) / width)
+        in
+          { data
+          | zoomingState = Zooming { originalZoomLevel = originalZoomLevel, currentZoomLevel = newZoomLevel }
+          , gestureState = newGestureState
+          }
+      ( Zooming { currentZoomLevel }, _ ) ->
+        { data
+        | zoomingState = NotZooming { zoomLevel = currentZoomLevel }
+        , gestureState = newGestureState
+        }
+      _ -> { data | gestureState = newGestureState }
 
     -- TODO Work with absolute diffs, but remember pre-zooming level in a "ZoomingState"
-    newZoomLevel = case newGestureState of
-      Gestures.PointingDouble p -> if p.distanceZoomed >= 0
-        then oldZoomLevel * (width / (width - p.distanceZoomed))
-        else max 1 oldZoomLevel * ((width + p.distanceZoomed) / width)
+    -- newZoomLevel = case newGestureState of
+    --   Gestures.PointingDouble p -> if p.distanceZoomed >= 0
+    --     then oldZoomLevel * (width / (width - p.distanceZoomed))
+    --     else max 1 oldZoomLevel * ((width + p.distanceZoomed) / width)
 
-      _ -> oldZoomLevel
+    --   _ -> oldZoomLevel
 
-    -- TODO Work with absolute diffs, but remember pre-panning level in a "PanningState"
-    newOffset = case newGestureState of
-      Gestures.PointingSingle p ->
-        max 0 oldOffset + round ((p.distanceMoved.x / width) * toFloat numSamplesToDisplay)
+    -- -- TODO Work with absolute diffs, but remember pre-panning level in a "PanningState"
+    -- newOffset = case newGestureState of
+    --   Gestures.PointingSingle p ->
+    --     max 0 oldOffset + round ((p.distanceMoved.x / width) * toFloat numSamplesToDisplay)
 
-      _ -> oldOffset
+    --   _ -> oldOffset
 
-    oldDisplayParams = data.displayParams
-    oldZoomLevel = oldDisplayParams.zoomLevel
-    oldOffset = oldDisplayParams.sampleOffset
 
-  in
-    { data
-    | gestureState = newGestureState
-    , displayParams =
-      { oldDisplayParams
-      | zoomLevel = newZoomLevel
-      , sampleOffset = newOffset
-      }
-    }
+  -- in
+  --   { data
+  --   | gestureState = newGestureState
+  --   , displayParams =
+  --     { oldDisplayParams
+  --     | zoomLevel = newZoomLevel
+  --     , sampleOffset = newOffset
+  --     }
+  --   }
 
 
 playbackControlsView : FileLoadedModel -> Html Msg

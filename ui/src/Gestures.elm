@@ -82,9 +82,8 @@ updateState ev state = case (ev, state) of
             | pointer1 = newPointer1
             , pointer2 = newPointer2
             , distanceZoomed =
-              (distance newPointer1.position newPointer2.position) -
-              -- (distance newPointer1.startPosition newPointer2.startPosition)
-              (distance p.pointer1.position p.pointer2.position)
+              (distance p.pointer1.position p.pointer2.position) -
+              (distance newPointer1.startPosition newPointer2.startPosition)
             , distanceMoved = coordDiff
                 (midPoint newPointer1.position newPointer2.position)
                 (midPoint newPointer1.startPosition newPointer2.startPosition)
