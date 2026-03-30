@@ -385,11 +385,11 @@ updateOnGesture e ({ zoomingState, gestureState, displayParams, soundwaveDimensi
         | zoomingState = Zooming { originalZoomLevel = zoomLevel, currentZoomLevel = zoomLevel }
         , gestureState = newGestureState
         }
-      ( Zooming { originalZoomLevel }, Gestures.PointingDouble p ) ->
+      ( Zooming { originalZoomLevel, currentZoomLevel }, Gestures.PointingDouble p ) ->
         let
-            newZoomLevel = Debug.log "new zoom: " <| if p.distanceZoomed >= 0
-              then originalZoomLevel * (width / (width - p.distanceZoomed))
-              else max 1 <| originalZoomLevel * ((width + p.distanceZoomed) / width)
+            oldWidth = width
+            newWidth = oldWidth + p.distanceZoomed
+            newZoomLevel = originalZoomLevel * newWidth / oldWidth
         in
           { data
           | zoomingState = Zooming { originalZoomLevel = originalZoomLevel, currentZoomLevel = newZoomLevel }
