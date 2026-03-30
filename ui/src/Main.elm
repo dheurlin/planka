@@ -370,9 +370,9 @@ updateOnGesture e data =
 
     -- TODO Work with absolute diffs, but remember pre-zooming level in a "ZoomingState"
     newZoomLevel = case newGestureState of
-      Gestures.PointingDouble p -> case p.distanceZoomed >= 0 of
-        True ->  oldZoomLevel * (width / (width - p.distanceZoomed))
-        False -> max 1 oldZoomLevel * ((width + p.distanceZoomed) / width)
+      Gestures.PointingDouble p -> if p.distanceZoomed >= 0
+        then oldZoomLevel * (width / (width - p.distanceZoomed))
+        else max 1 oldZoomLevel * ((width + p.distanceZoomed) / width)
 
       _ -> oldZoomLevel
 
