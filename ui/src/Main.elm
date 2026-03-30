@@ -65,8 +65,8 @@ type alias FileLoadedModel =
   , gestureState: Gestures.PointerState
   }
 
-defaultFileLoadedModel : FileInfo -> FileLoadedModel
-defaultFileLoadedModel i =
+initialFileLoadedModel : FileInfo -> FileLoadedModel
+initialFileLoadedModel i =
   { parameters = { playbackSpeed = 1, pitchShiftFactor = 1 }
   , fileInfo = i
   , soundwaveDimensions = { height = 0, width = 0 }
@@ -122,7 +122,7 @@ update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case ( msg, model ) of
     ( GotFileSelectMsg (FileSelect.GotFileInfo i) , FileSelectModel _) ->
-      initLoaded (defaultFileLoadedModel i)
+      initLoaded (initialFileLoadedModel i)
 
     ( GotFileSelectMsg subMsg, FileSelectModel subModel ) ->
       FileSelect.update subMsg subModel |> updateWith FileSelectModel GotFileSelectMsg model
