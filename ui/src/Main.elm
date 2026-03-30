@@ -1,7 +1,6 @@
 module Main exposing ( main )
 
 import Browser
-import Http
 
 import Html exposing
   ( Html
@@ -37,8 +36,9 @@ import MessageToUI as ToUI
 
 import ResizeObserver
 import Gestures
-import Utils
-import MockData.MockSamples
+import FileInfo exposing (FileInfo)
+
+import Screens.FileSelect as FileSelect
 
 main : Program (List String) Model Msg
 main =
@@ -50,22 +50,12 @@ main =
   }
 
 type Model
-  = FileNotLoaded
-  | FileSelected
-  | FileLoading FileInfo -- TODO FileInfo needed here?
+  = FileSelectModel FileSelect.Model
   | FileLoaded FileLoadedModel
-
-type alias FileInfo =
-  { sampleRate: Float
-  , durationInMs: Int
-  , reverseSamplesURL: String -- We receive the samples in reverse, so we don't have to reverse a linked list on the elm side
-  , numSamples: Int
-  }
 
 type alias FileLoadedModel =
   { parameters: PlaybackParameters
   , fileInfo: FileInfo
-  , channelData: Array Float
   , soundwaveDimensions: { height: Float, width: Float }
   , displayParams: SoundwaveDisplayParams
   , playbackStatus:
@@ -73,6 +63,19 @@ type alias FileLoadedModel =
     , progressInSamples: Int
     }
   , gestureState: Gestures.PointerState
+  }
+
+defaultFileLoadedModel : FileInfo -> FileLoadedModel
+defaultFileLoadedModel i =
+  { parameters = { playbackSpeed = 1, pitchShiftFactor = 1 }
+  , fileInfo = i
+  , soundwaveDimensions = { height = 0, width = 0 }
+  , displayParams = { zoomLevel = 1, sampleOffset = 0 }
+  , playbackStatus =
+      { playingStatus = Paused
+      , progressInSamples = 0
+      }
+  , gestureState = Gestures.None
   }
 
 type PlayingStatus = Playing | Paused
@@ -88,9 +91,7 @@ type alias SoundwaveDisplayParams =
   }
 
 type Msg
-  = SelectedFile (List D.Value)
-  | GotFileInfo FileInfo
-  | GotFileData (Array Float) -- TODO Just one channel for now
+  = GotFileSelectMsg FileSelect.Msg
   | ChangedPitchShiftFactor Float
   | ChangedPlaybackSpeed Float
   | ClickedPlay
@@ -99,53 +100,32 @@ type Msg
   | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float }
   | GotGestureEvent Gestures.PointerMsg
   | OccuredError String
+  | Irrelevant
+
+initWith : (subModel -> Model) -> (subMsg -> Msg) -> (flags -> ( subModel, subMsg )) -> flags -> ( Model, Cmd Msg )
+initWith toModel toMsg initFn flags =
+  let
+    ( model, cmd ) = initFn flags
+  in
+    update (toMsg cmd) (toModel model) 
 
 init : ( List String ) -> ( Model, Cmd Msg )
-init flags =
-  if List.member "UseMockSamples" flags then
-    let
-      samplesLen = MockData.MockSamples.b64CodedMockSamplesByteLength // 4
-      mockSamplesResult = Utils.decodeSamplesB64 MockData.MockSamples.b64CodedMockSamples samplesLen
-    in
-      case mockSamplesResult of
-        Err e -> ( FileNotLoaded, Cmd.map (always OccuredError <| "Error decoding mock samples: " ++ e ) Cmd.none)
-        Ok arr ->
-          ( FileLoaded
-            { parameters = { pitchShiftFactor = 1, playbackSpeed = 1 }
-            , playbackStatus = { playingStatus = Paused, progressInSamples = 0 }
-            , channelData = arr
-            , fileInfo = { durationInMs = 1000, numSamples = samplesLen, reverseSamplesURL = "www.svt.se", sampleRate = 48000 }
-            , displayParams = { zoomLevel = 1, sampleOffset = 0 }
-            , soundwaveDimensions = { width = 0, height = 0 }
-            , gestureState = Gestures.None
-            }
-          , ResizeObserver.observeElement "sound-wave-container"
-          )
-  else
-    ( FileNotLoaded, Cmd.none )
+init flags = initWith FileSelectModel GotFileSelectMsg FileSelect.init flags
+
+initLoaded : FileLoadedModel -> ( Model, Cmd Msg )
+initLoaded m =
+  ( FileLoaded m
+  , ResizeObserver.observeElement "sound-wave-container"
+  )
 
 update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case ( msg, model ) of
-    ( SelectedFile (f :: []), _ ) ->
-      ( FileSelected , FromUI.send <| FromUI.FileChosen f )
+    ( GotFileSelectMsg (FileSelect.GotFileInfo i) , FileSelectModel _) ->
+      initLoaded (defaultFileLoadedModel i)
 
-    ( SelectedFile _, _ )-> ( model, Cmd.none )
-
-    ( GotFileInfo i, _ ) -> ( FileLoading i , downloadAudioBytes i.reverseSamplesURL i.numSamples )
-
-    ( GotFileData fs, FileLoading i ) ->
-      ( FileLoaded
-        { parameters = { playbackSpeed = 1, pitchShiftFactor = 1 }
-        , fileInfo = i
-        , channelData = fs
-        , soundwaveDimensions = { height = 0, width = 0 }
-        , displayParams = { sampleOffset = 0, zoomLevel = 1 }
-        , playbackStatus = { playingStatus = Paused, progressInSamples = 0 }
-        , gestureState = Gestures.None
-        }
-      , ResizeObserver.observeElement "sound-wave-container"
-      )
+    ( GotFileSelectMsg subMsg, FileSelectModel subModel ) ->
+      FileSelect.update subMsg subModel |> updateWith FileSelectModel GotFileSelectMsg model
 
     ( ChangedPitchShiftFactor p, FileLoaded data ) -> 
       ( FileLoaded
@@ -213,58 +193,47 @@ update msg model =
 
     (c, m) -> ( Debug.log "UNHANDLED MODEL" m, Debug.log "AND MSG" c |> always Cmd.none )
 
-downloadAudioBytes : String -> Int -> Cmd Msg
-downloadAudioBytes bytesUrl length =
-  let
-      makeMsg : Result Http.Error (Array Float) -> Msg
-      makeMsg r = case r of
-        Ok bytes -> GotFileData bytes
-        Err m -> OccuredError <| Utils.httpErrorToString m
-  in
-    Http.get
-      { url = bytesUrl
-      , expect = Http.expectBytes makeMsg (Utils.floatArrayReverseDecoder length)
-      }
+updateWith : (subModel -> Model) -> (subMsg -> Msg) -> Model -> ( subModel, Cmd subMsg ) -> ( Model, Cmd Msg )
+updateWith toModel toMsg model ( subModel, subCmd ) =
+    ( toModel subModel
+    , Cmd.map toMsg subCmd
+    )
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-  Sub.batch
-    [ ToUI.receive <| \m -> case m of
-        Ok (ToUI.AudioInfo info) -> GotFileInfo
-          { durationInMs = info.durationInMs
-          , sampleRate = info.sampleRate
-          , reverseSamplesURL = info.reverseSamplesURL
-          , numSamples = info.numSamples
-          }
+subscriptions model =
+  case model of
+    FileSelectModel f -> Sub.map GotFileSelectMsg (FileSelect.subscriptions f)
+    _ -> 
+      Sub.batch
+        [ ToUI.receive <| \m -> case m of
+            Ok (ToUI.PlaybackProgress p) -> GotPlaybackProgress
+              { progressInSamples = p.progressInSamples }
 
-        Ok (ToUI.PlaybackProgress p) -> GotPlaybackProgress
-          { progressInSamples = p.progressInSamples }
+            Ok _ -> Irrelevant
 
-        Err e                 -> OccuredError e
+            Err e                 -> OccuredError e
 
-    , ResizeObserver.resize <| \res -> case res of
-        Ok ev -> GotResizeEvent
-          { elementId = ev.elementId
-          , newWidth = ev.newWidth
-          , newHeight = ev.newHeight
-          }
+        , ResizeObserver.resize <| \res -> case res of
+            Ok ev -> GotResizeEvent
+              { elementId = ev.elementId
+              , newWidth = ev.newWidth
+              , newHeight = ev.newHeight
+              }
 
-        Err e -> OccuredError e
-    ]
+            Err e -> OccuredError e
+        ]
 
 view : Model -> Html Msg
 view model =
   div 
     [ id "app-container"] <| 
-    [ ]
-    ++ contentView model
+    [ contentView model ]
+    
 
-contentView : Model -> List (Html Msg)
+contentView : Model -> Html Msg
 contentView model = case model of
-  FileNotLoaded -> fileSelectView
-  FileLoading _  -> [ text "Loading..." ]
-  FileSelected   -> [ text "Loading..." ]
-  FileLoaded m -> [ loadedView m ]
+  FileSelectModel f -> Html.map GotFileSelectMsg <| FileSelect.view f
+  FileLoaded m ->  loadedView m 
 
 loadedView : FileLoadedModel -> Html Msg
 loadedView m = div []
@@ -331,8 +300,9 @@ numSamplesToDisplay : Int
 numSamplesToDisplay = 10000 -- Seems to render fast enough, and look OK
 
 soundWaveView : FileLoadedModel -> Html Msg
-soundWaveView { channelData, soundwaveDimensions, playbackStatus, displayParams } =
+soundWaveView { fileInfo, soundwaveDimensions, playbackStatus, displayParams } =
   let
+    channelData = fileInfo.channelData
     { zoomLevel, sampleOffset } = displayParams
     width = soundwaveDimensions.width
     height = soundwaveDimensions.height
@@ -449,17 +419,3 @@ playbackControlsView { playbackStatus } =
         [ onClick buttonClickHandler ]
         [ buttonContents ]
       ]
-
-fileSelectView : List (Html Msg)
-fileSelectView = 
-  [ p [] [ text "No file selected" ]
-  , input
-      [ type_ "file"
-      , on "change" (D.map SelectedFile filesDecoder)
-      ] [ ] 
-  ]
-
-filesDecoder : D.Decoder (List D.Value)
-filesDecoder =
-  D.at ["target", "files"] (D.list D.value)
-

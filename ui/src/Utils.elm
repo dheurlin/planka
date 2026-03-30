@@ -57,3 +57,6 @@ decodeSamplesB64 b64 numSamples =
         BD.decode (floatListReverseDecoder numSamples) bytes
     )
     |> Result.map (Array.fromList << List.reverse)
+
+cmdFromMsg : msg -> Cmd msg
+cmdFromMsg m = Cmd.map (always m) Cmd.none
