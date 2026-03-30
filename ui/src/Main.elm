@@ -328,7 +328,8 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
     downSamplingStride = toFloat (Array.length channelData) / toFloat numSamplesToDisplay
     samplesToDisplay = Array.initialize numSamplesToDisplay <| \i ->
       Array.get (sampleOffset + (floor <| toFloat i * downSamplingStride / zoomLevel)) channelData |> Maybe.withDefault 0
-    linePoints = samplesToLinePoints (width, height) zoomLevel sampleOffset samplesToDisplay
+    sampleOffsetDownSampled = (round <| toFloat sampleOffset / downSamplingStride)
+    linePoints = samplesToLinePoints (width, height) zoomLevel sampleOffsetDownSampled samplesToDisplay
   in
     div
       [ id "sound-wave-container"
