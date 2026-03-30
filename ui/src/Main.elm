@@ -414,8 +414,9 @@ updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensio
 
       ( _, Panning { originalSampleOffset }, Gestures.PointingSingle p) ->
         let
-          panningSpeed = 1 / 15 -- found experimentally, no idea why this works ¯\_(ツ)_/¯
-          samplesMoved = round <| (toFloat data.fileInfo.numSamples / (width * getZoomLevel data)) * p.distanceMoved.x * panningSpeed
+          samplesMoved = round <| -- Couldn't get it perfect, but this is the most natural-feeling formula I've been able to come up with
+            (toFloat data.fileInfo.numSamples / (width * getZoomLevel data)) *
+            (p.distanceMoved.x / getZoomLevel data)
         in
           { data
           | panningState = Panning { originalSampleOffset = originalSampleOffset, currentSampleOffset = originalSampleOffset + samplesMoved }
