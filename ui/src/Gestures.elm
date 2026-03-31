@@ -44,27 +44,24 @@ updatePointerPosition c p = { p | position = c }
 updateState : PointerMsg -> PointerState -> PointerState
 updateState ev state = case (ev, state) of
   ( GotPointerDown { pointerId, clientCoords }, None ) -> PointingSingle
-      { pointer = { pointerId = pointerId, position = clientCoords, startPosition = clientCoords }
-      , distanceMoved = { x = 0, y = 0 }
-      }
+    { pointer = { pointerId = pointerId, position = clientCoords, startPosition = clientCoords }
+    , distanceMoved = { x = 0, y = 0 }
+    }
 
   ( GotPointerDown { pointerId, clientCoords }, PointingSingle p ) ->
      PointingDouble
-          { pointer1 = p.pointer
-          , pointer2 = { pointerId = pointerId, position = clientCoords, startPosition = clientCoords }
-          , distanceMoved = p.distanceMoved
-          , distanceZoomed = 0
-          }
+      { pointer1 = p.pointer
+      , pointer2 = { pointerId = pointerId, position = clientCoords, startPosition = clientCoords }
+      , distanceMoved = p.distanceMoved
+      , distanceZoomed = 0
+      }
 
   ( GotPointerMove { clientCoords }, PointingSingle p ) ->
-    let
-      newPointer = updatePointerPosition clientCoords p.pointer
-    in
-       PointingSingle
-            { p
-            | pointer = newPointer
-            , distanceMoved = coordDiff p.pointer.startPosition clientCoords 
-            }
+     PointingSingle
+      { p
+      | pointer = updatePointerPosition clientCoords p.pointer
+      , distanceMoved = coordDiff p.pointer.position clientCoords
+      }
 
   ( GotPointerMove { pointerId, clientCoords }, PointingDouble p ) ->
     let
@@ -77,16 +74,16 @@ updateState ev state = case (ev, state) of
         else p.pointer2
     in
        PointingDouble
-            { p
-            | pointer1 = newPointer1
-            , pointer2 = newPointer2
-            , distanceZoomed =
-              (distance p.pointer1.position p.pointer2.position) -
-              (distance newPointer1.startPosition newPointer2.startPosition)
-            , distanceMoved = coordDiff
-                (midPoint newPointer1.position newPointer2.position)
-                (midPoint newPointer1.startPosition newPointer2.startPosition)
-            }
+        { p
+        | pointer1 = newPointer1
+        , pointer2 = newPointer2
+        , distanceZoomed =
+          (distance p.pointer1.position p.pointer2.position) -
+          (distance newPointer1.position newPointer2.position)
+        , distanceMoved = coordDiff
+            (midPoint newPointer1.position newPointer2.position)
+            (midPoint newPointer1.position newPointer2.position)
+        }
 
   ( GotPointerUp _, PointingSingle p ) -> None
 

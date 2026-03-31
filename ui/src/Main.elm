@@ -416,57 +416,29 @@ screenOffsetToSampleOffset model zoomLevel screenOffset =
   round <| ( toFloat model.fileInfo.numSamples  / (model.soundwaveDimensions.width * zoomLevel)  * screenOffset)
 
 updateOnGesture : Gestures.PointerMsg -> FileLoadedModel -> FileLoadedModel
-updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensions } as data) =
-  let
-    newGestureState = Gestures.updateState e gestureState
-    width = soundwaveDimensions.width
-  in
-    case (zoomingState, panningState, newGestureState) of
-      ( NotZooming { zoomLevel }, Panning _, Gestures.PointingDouble _ ) ->
-        { data
-        | zoomingState = Zooming { originalZoomLevel = zoomLevel, currentZoomLevel = zoomLevel }
-        , gestureState = newGestureState
-        }
-      ( Zooming { originalZoomLevel }, Panning { currentSampleOffset, originalSampleOffset }, Gestures.PointingDouble p ) ->
-        let
-            newWidth = width + (p.distanceZoomed)
-            newZoomLevel = max 1 <| originalZoomLevel * newWidth / width
-            xToSamples = screenOffsetToSampleOffset data originalZoomLevel
-            sampleCompensation = round <| toFloat (xToSamples p.distanceZoomed) / 2
-        in
-          { data
-          | zoomingState = Zooming { originalZoomLevel = originalZoomLevel, currentZoomLevel = newZoomLevel }
-          , panningState = Panning { currentSampleOffset = sampleCompensation, originalSampleOffset = originalSampleOffset }
-          , gestureState = newGestureState
-          }
-      ( Zooming { currentZoomLevel }, _ , _) ->
-        { data
-        | zoomingState = NotZooming { zoomLevel = currentZoomLevel }
-        , gestureState = newGestureState
-        }
+updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensions } as model) = case (zoomingState, panningState) of
+  (NotZooming { zoomLevel }, NotPanning { sampleOffset }) ->
+    let
+      newGestureState = Gestures.updateState e gestureState
+      width = soundwaveDimensions.width
+      (deltaX, deltaY) = case newGestureState of
+        Gestures.None -> (0, 0)
+        Gestures.PointingSingle p -> (p.distanceMoved.x, 0)
+        Gestures.PointingDouble p -> (p.distanceMoved.x, p.distanceZoomed)
 
-      ( _, NotPanning { sampleOffset }, Gestures.PointingSingle _) ->
-        { data
-        | panningState = Panning { originalSampleOffset = sampleOffset, currentSampleOffset = sampleOffset }
-        , gestureState = newGestureState
-        }
+      newZoomLevel = zoomLevel * ((deltaY - width) / -width)
+      xToSamples = screenOffsetToSampleOffset model newZoomLevel 
+      deltaSampleOffset = xToSamples (deltaX)
+      newSampleOffset = sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (deltaY)) / 2)
+      _ = Debug.log "DeltaX" deltaX
+    in
+      { model
+      | zoomingState = NotZooming { zoomLevel = newZoomLevel }
+      , panningState = NotPanning { sampleOffset = newSampleOffset }
+      , gestureState = newGestureState
+      }
 
-      ( _, Panning { originalSampleOffset }, Gestures.PointingSingle p) ->
-        let
-          samplesMoved = screenOffsetToSampleOffset data (getZoomLevel data) (p.distanceMoved.x)
-        in
-          { data
-          | panningState = Panning { originalSampleOffset = originalSampleOffset, currentSampleOffset = originalSampleOffset + samplesMoved }
-          , gestureState = newGestureState
-          }
-
-      ( _, Panning { currentSampleOffset }, Gestures.None) ->
-        { data
-        | panningState = NotPanning { sampleOffset = currentSampleOffset }
-        , gestureState = newGestureState
-        }
-
-      _ -> { data | gestureState = newGestureState }
+  _ -> model
 
 updateOnWheel : WheelEvent -> FileLoadedModel -> FileLoadedModel
 updateOnWheel e ({zoomingState, panningState} as model) = case (zoomingState, panningState) of
