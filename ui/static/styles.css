@@ -34,9 +34,8 @@ body {
     position: absolute;
     top: 0;
     bottom: 0;
-    left: var(--x-position);
-    transform: translateX(-50%);
-    transition: left 300ms linear;
+    left: 0;
+    transform: translateX(calc(-50% + var(--x-position)));
 
     width: 3px;
     background-color: red;

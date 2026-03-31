@@ -9,7 +9,7 @@
 // to assume that all input and output channels have this length
 const unsigned FRAME_SIZE = 128;
 
-constexpr float NUM_PROGRESS_REPORTS_PER_SECOND = 5;
+constexpr float NUM_PROGRESS_REPORTS_PER_SECOND = 100;
 constexpr float PROGRESS_REPORT_FREQUENCY = 1.0 / NUM_PROGRESS_REPORTS_PER_SECOND;
 
 WASM_IMPORT void report_current_progress_in_samples(size_t samples);
