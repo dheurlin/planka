@@ -438,7 +438,7 @@ updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensio
 
       ( _, Panning { originalSampleOffset }, Gestures.PointingSingle p) ->
         let
-          samplesMoved = round <| -- Perfect on desktop, too slow on mobile
+          samplesMoved = round <|
             (toFloat data.fileInfo.numSamples / (width * getZoomLevel data)) *
             (p.distanceMoved.x)
         in
