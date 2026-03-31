@@ -115,6 +115,7 @@ type Msg
   | GotPlaybackProgress { progressInSamples: Int }
   | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float }
   | GotGestureEvent Gestures.PointerMsg
+  | GotWheelEvent WheelEvent
   | OccuredError String
   | Irrelevant
 
@@ -204,6 +205,8 @@ update msg model =
       _ -> ( model, Cmd.none )
 
     ( GotGestureEvent e, FileLoaded data ) -> ( FileLoaded <| updateOnGesture e data, Cmd.none )
+
+    ( GotWheelEvent e, FileLoaded data ) -> ( FileLoaded <| updateOnWheel e data, Cmd.none )
 
     ( OccuredError e, _) -> ( Debug.log e model, Cmd.none ) -- TODO Better error handling?
 
@@ -360,6 +363,7 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , Gestures.onPointerDown GotGestureEvent
       , Gestures.onPointerUp GotGestureEvent
       , Gestures.onPointerMove GotGestureEvent
+      , on "wheel" (D.map GotWheelEvent wheelDecoder)
       ]
       [ S.svg
         [ S.class "sound-wave-svg"
@@ -402,6 +406,14 @@ sampleToLinePoint params stride { originalIndex, value } =
 sampleIndexToXCoord : SoundWaveParams -> Int -> Int -> Float
 sampleIndexToXCoord { numSamples, dims, zoomLevel, sampleOffset } stride sampleIndex =
   (toFloat (sampleIndex - ceiling (toFloat sampleOffset / toFloat stride)) / toFloat numSamples) * Tuple.first dims * zoomLevel * toFloat stride
+
+-- sampleOffsetToScreenOffset : FileLoadedModel -> Float -> Int -> Float
+-- sampleOffsetToScreenOffset model zoomLevel =
+
+
+screenOffsetToSampleOffset : FileLoadedModel -> Float -> Float -> Int
+screenOffsetToSampleOffset model zoomLevel screenOffset =
+  round <| ( toFloat model.fileInfo.numSamples  / (model.soundwaveDimensions.width * zoomLevel)  * screenOffset)
 
 updateOnGesture : Gestures.PointerMsg -> FileLoadedModel -> FileLoadedModel
 updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensions } as data) =
@@ -455,6 +467,23 @@ updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensio
 
       _ -> { data | gestureState = newGestureState }
 
+updateOnWheel : WheelEvent -> FileLoadedModel -> FileLoadedModel
+updateOnWheel e ({zoomingState, panningState} as model) = case (zoomingState, panningState) of
+  (NotZooming { zoomLevel }, NotPanning { sampleOffset }) ->
+    let
+      width = model.soundwaveDimensions.width
+      panSpeed = 2
+      newZoomLevel = zoomLevel * ((e.deltaY - width) / -width)
+      xToSamples = screenOffsetToSampleOffset model newZoomLevel 
+      deltaSampleOffset = xToSamples (e.deltaX * panSpeed)
+      newSampleOffset = sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (e.deltaY)) / 2)
+    in
+      { model
+      | zoomingState = NotZooming { zoomLevel = newZoomLevel }
+      , panningState = NotPanning { sampleOffset = newSampleOffset }
+      }
+  _ -> model
+
 playbackControlsView : FileLoadedModel -> Html Msg
 playbackControlsView { playbackStatus } =
   let
@@ -476,3 +505,15 @@ playbackControlsView { playbackStatus } =
         [ onClick buttonClickHandler ]
         [ buttonContents ]
       ]
+
+type alias WheelEvent =
+  { deltaX: Float
+  , deltaY: Float
+  , deltaZ: Float
+  }
+
+wheelDecoder : D.Decoder WheelEvent
+wheelDecoder = D.map3 (\x y z -> { deltaX = x, deltaY = y, deltaZ = z })
+  ( D.field "deltaX" D.float )
+  ( D.field "deltaY" D.float )
+  ( D.field "deltaZ" D.float )
