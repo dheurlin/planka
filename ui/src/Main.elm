@@ -315,6 +315,24 @@ targetValueFloatDecoder =
 numSamplesToDisplay : Int
 numSamplesToDisplay = 10000 -- Seems to render fast enough, and look OK
 
+type alias DownSampledSamples = Array { originalIndex: Int, value: Float }
+
+downSample : Int -> Array Float -> DownSampledSamples
+downSample targetLength arr = Array.initialize targetLength <| \i ->
+  let
+    stride = floor <| toFloat (Array.length arr) / toFloat targetLength
+  in
+    { originalIndex = i
+    , value = Array.get (i * stride) arr |> Maybe.withDefault 1
+    }
+
+type alias SoundWaveParams =
+  { dims : (Float, Float)
+  , zoomLevel : Float
+  , sampleOffset : Int
+  , numSamples : Int
+  }
+
 soundWaveView : FileLoadedModel -> Html Msg
 soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
   let
@@ -325,11 +343,17 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
     height = soundwaveDimensions.height
     widthStr = String.fromFloat width
     heightStr = String.fromFloat height
-    downSamplingStride = toFloat (Array.length channelData) / toFloat numSamplesToDisplay
-    samplesToDisplay = Array.initialize numSamplesToDisplay <| \i ->
-      Array.get (sampleOffset + (floor <| toFloat i * downSamplingStride / zoomLevel)) channelData |> Maybe.withDefault 0
-    sampleOffsetDownSampled = (round <| toFloat sampleOffset / downSamplingStride)
-    linePoints = samplesToLinePoints (width, height) zoomLevel sampleOffsetDownSampled samplesToDisplay
+    params : SoundWaveParams
+    params =
+      { dims = (width, height)
+      , zoomLevel = zoomLevel
+      , sampleOffset = sampleOffset
+      , numSamples = Array.length fileInfo.channelData
+      -- , numSamples = numSamplesToDisplay
+      }
+    stride = round <| (toFloat <| Array.length channelData) / toFloat numSamplesToDisplay
+    downSampled = downSample numSamplesToDisplay fileInfo.channelData
+    linePoints = samplesToLinePoints params stride downSampled
   in
     div
       [ id "sound-wave-container"
@@ -352,7 +376,7 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , div
         [ class "progress-indicator"
         , attribute "style" <| "--x-position: " ++
-          ( sampleIndexToXCoord (width, height) zoomLevel sampleOffset (Array.length channelData) playbackStatus.progressInSamples
+          ( sampleIndexToXCoord params 1 playbackStatus.progressInSamples
           |> String.fromFloat
           |> \s -> s ++ "px;"
           )
@@ -366,18 +390,18 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
 stringifyLinePoints : Array (Float, Float) -> String
 stringifyLinePoints = Array.foldl (\(x, y) acc -> acc ++ (String.fromFloat x) ++ "," ++ (String.fromFloat y) ++ " ") ""
 
-samplesToLinePoints : (Float, Float) -> Float -> Int -> Array Float -> Array (Float, Float)
-samplesToLinePoints dims zoomLevel sampleOffset arr = Array.indexedMap (sampleToLinePoint dims zoomLevel sampleOffset (Array.length arr)) arr
+samplesToLinePoints : SoundWaveParams -> Int -> DownSampledSamples -> Array (Float, Float)
+samplesToLinePoints params stride arr = Array.map (sampleToLinePoint params stride) arr
 
-sampleToLinePoint : (Float, Float) -> Float -> Int -> Int -> Int -> Float -> (Float, Float)
-sampleToLinePoint dims zoomLevel sampleOffset numSamples sampleIndex sample =
-  ( sampleIndexToXCoord dims zoomLevel sampleOffset numSamples sampleIndex
-  , (Tuple.second dims / 2) + sample * Tuple.second dims -- TODO Should it be minus here? Since 0 is on top
+sampleToLinePoint : SoundWaveParams -> Int ->  { originalIndex: Int, value: Float } -> (Float, Float)
+sampleToLinePoint params stride { originalIndex, value } =
+  ( sampleIndexToXCoord params stride originalIndex
+  , (Tuple.second params.dims / 2) - value * Tuple.second params.dims
   )
 
-sampleIndexToXCoord : (Float, Float) -> Float -> Int -> Int -> Int -> Float
-sampleIndexToXCoord (width, height) zoomLevel sampleOffset numSamples sampleIndex =
-  (toFloat (sampleIndex - sampleOffset) / toFloat numSamples) * width * zoomLevel
+sampleIndexToXCoord : SoundWaveParams -> Int -> Int -> Float
+sampleIndexToXCoord { numSamples, dims, zoomLevel, sampleOffset } stride sampleIndex =
+  (toFloat (sampleIndex - ceiling (toFloat sampleOffset / toFloat stride)) / toFloat numSamples) * Tuple.first dims * zoomLevel * toFloat stride
 
 updateOnGesture : Gestures.PointerMsg -> FileLoadedModel -> FileLoadedModel
 updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensions } as data) =
@@ -414,9 +438,9 @@ updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensio
 
       ( _, Panning { originalSampleOffset }, Gestures.PointingSingle p) ->
         let
-          samplesMoved = round <| -- Couldn't get it perfect, but this is the most natural-feeling formula I've been able to come up with
+          samplesMoved = round <| -- Perfect on desktop, too slow on mobile
             (toFloat data.fileInfo.numSamples / (width * getZoomLevel data)) *
-            (p.distanceMoved.x / getZoomLevel data)
+            (p.distanceMoved.x)
         in
           { data
           | panningState = Panning { originalSampleOffset = originalSampleOffset, currentSampleOffset = originalSampleOffset + samplesMoved }
