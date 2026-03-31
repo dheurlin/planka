@@ -422,18 +422,21 @@ updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensio
     width = soundwaveDimensions.width
   in
     case (zoomingState, panningState, newGestureState) of
-      ( NotZooming { zoomLevel }, _, Gestures.PointingDouble _ ) ->
+      ( NotZooming { zoomLevel }, Panning _, Gestures.PointingDouble _ ) ->
         { data
         | zoomingState = Zooming { originalZoomLevel = zoomLevel, currentZoomLevel = zoomLevel }
         , gestureState = newGestureState
         }
-      ( Zooming { originalZoomLevel }, _ ,Gestures.PointingDouble p ) ->
+      ( Zooming { originalZoomLevel }, Panning { currentSampleOffset, originalSampleOffset }, Gestures.PointingDouble p ) ->
         let
             newWidth = width + (p.distanceZoomed)
             newZoomLevel = max 1 <| originalZoomLevel * newWidth / width
+            xToSamples = screenOffsetToSampleOffset data originalZoomLevel
+            sampleCompensation = round <| toFloat (xToSamples p.distanceZoomed) / 2
         in
           { data
           | zoomingState = Zooming { originalZoomLevel = originalZoomLevel, currentZoomLevel = newZoomLevel }
+          , panningState = Panning { currentSampleOffset = sampleCompensation, originalSampleOffset = originalSampleOffset }
           , gestureState = newGestureState
           }
       ( Zooming { currentZoomLevel }, _ , _) ->
@@ -450,9 +453,7 @@ updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensio
 
       ( _, Panning { originalSampleOffset }, Gestures.PointingSingle p) ->
         let
-          samplesMoved = round <|
-            (toFloat data.fileInfo.numSamples / (width * getZoomLevel data)) *
-            (p.distanceMoved.x)
+          samplesMoved = screenOffsetToSampleOffset data (getZoomLevel data) (p.distanceMoved.x)
         in
           { data
           | panningState = Panning { originalSampleOffset = originalSampleOffset, currentSampleOffset = originalSampleOffset + samplesMoved }
