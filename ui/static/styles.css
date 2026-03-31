@@ -3,6 +3,11 @@ body {
   padding: 0px;
 
   background-color: pink;
+
+  /**
+   * Prevent default touch behavior, allowing us to implement pinch-to-zoom
+   */
+  touch-action: none;
 }
 
 #app-container {
