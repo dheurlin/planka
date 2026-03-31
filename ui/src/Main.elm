@@ -62,27 +62,9 @@ type alias FileLoadedModel =
     , progressInSamples: Int
     }
   , gestureState: Gestures.PointerState
-  , zoomingState: ZoomingState
-  , panningState: PanningState
+  , zoomLevel: Float
+  , sampleOffset: Int
   }
-
-type ZoomingState
-  = NotZooming { zoomLevel: Float }
-  | Zooming { originalZoomLevel: Float, currentZoomLevel: Float }
-
-getZoomLevel : FileLoadedModel -> Float
-getZoomLevel { zoomingState } = case zoomingState of
-  NotZooming { zoomLevel } -> zoomLevel
-  Zooming { currentZoomLevel } -> currentZoomLevel
-
-type PanningState
-  = NotPanning { sampleOffset: Int }
-  | Panning { originalSampleOffset: Int, currentSampleOffset: Int }
-
-getSampleOffset : FileLoadedModel -> Int
-getSampleOffset { panningState } = case panningState of
-  NotPanning { sampleOffset } -> sampleOffset
-  Panning { currentSampleOffset } -> currentSampleOffset
 
 initialFileLoadedModel : FileInfo -> FileLoadedModel
 initialFileLoadedModel i =
@@ -94,8 +76,8 @@ initialFileLoadedModel i =
       , progressInSamples = 0
       }
   , gestureState = Gestures.None
-  , zoomingState = NotZooming { zoomLevel = 1 }
-  , panningState = NotPanning { sampleOffset = 0 }
+  , zoomLevel = 1
+  , sampleOffset = 0
   }
 
 type PlayingStatus = Playing | Paused
@@ -340,8 +322,8 @@ soundWaveView : FileLoadedModel -> Html Msg
 soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
   let
     channelData = fileInfo.channelData
-    sampleOffset = getSampleOffset model
-    zoomLevel = getZoomLevel model
+    sampleOffset = model.sampleOffset
+    zoomLevel = model.zoomLevel
     width = soundwaveDimensions.width
     height = soundwaveDimensions.height
     widthStr = String.fromFloat width
@@ -416,46 +398,41 @@ screenOffsetToSampleOffset model zoomLevel screenOffset =
   round <| ( toFloat model.fileInfo.numSamples  / (model.soundwaveDimensions.width * zoomLevel)  * screenOffset)
 
 updateOnGesture : Gestures.PointerMsg -> FileLoadedModel -> FileLoadedModel
-updateOnGesture e ({ zoomingState, gestureState, panningState, soundwaveDimensions } as model) = case (zoomingState, panningState) of
-  (NotZooming { zoomLevel }, NotPanning { sampleOffset }) ->
-    let
-      newGestureState = Gestures.updateState e gestureState
-      width = soundwaveDimensions.width
-      (deltaX, deltaY) = case newGestureState of
-        Gestures.None -> (0, 0)
-        Gestures.PointingSingle p -> (p.distanceMoved.x, 0)
-        Gestures.PointingDouble p -> (p.distanceMoved.x, p.distanceZoomed)
+updateOnGesture e ({ zoomLevel, gestureState, sampleOffset, soundwaveDimensions } as model) =
+  let
+    newGestureState = Gestures.updateState e gestureState
+    width = soundwaveDimensions.width
+    (deltaX, deltaY) = case newGestureState of
+      Gestures.None -> (0, 0)
+      Gestures.PointingSingle p -> (p.distanceMoved.x, 0)
+      Gestures.PointingDouble p -> (p.distanceMoved.x, p.distanceZoomed)
 
-      newZoomLevel = zoomLevel * ((deltaY - width) / -width)
-      xToSamples = screenOffsetToSampleOffset model newZoomLevel 
-      deltaSampleOffset = xToSamples (deltaX)
-      newSampleOffset = sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (deltaY)) / 2)
-      _ = Debug.log "DeltaX" deltaX
-    in
-      { model
-      | zoomingState = NotZooming { zoomLevel = newZoomLevel }
-      , panningState = NotPanning { sampleOffset = newSampleOffset }
-      , gestureState = newGestureState
-      }
-
-  _ -> model
+    newZoomLevel = zoomLevel * ((deltaY - width) / -width)
+    xToSamples = screenOffsetToSampleOffset model newZoomLevel 
+    deltaSampleOffset = xToSamples (deltaX)
+    newSampleOffset = sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (deltaY)) / 2)
+    _ = Debug.log "DeltaX" deltaX
+  in
+    { model
+    | zoomLevel = newZoomLevel
+    , sampleOffset = newSampleOffset
+    , gestureState = newGestureState
+    }
 
 updateOnWheel : WheelEvent -> FileLoadedModel -> FileLoadedModel
-updateOnWheel e ({zoomingState, panningState} as model) = case (zoomingState, panningState) of
-  (NotZooming { zoomLevel }, NotPanning { sampleOffset }) ->
-    let
-      width = model.soundwaveDimensions.width
-      panSpeed = 2
-      newZoomLevel = zoomLevel * ((e.deltaY - width) / -width)
-      xToSamples = screenOffsetToSampleOffset model newZoomLevel 
-      deltaSampleOffset = xToSamples (e.deltaX * panSpeed)
-      newSampleOffset = sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (e.deltaY)) / 2)
-    in
-      { model
-      | zoomingState = NotZooming { zoomLevel = newZoomLevel }
-      , panningState = NotPanning { sampleOffset = newSampleOffset }
-      }
-  _ -> model
+updateOnWheel e ({zoomLevel, sampleOffset} as model) = 
+  let
+    width = model.soundwaveDimensions.width
+    panSpeed = 2
+    newZoomLevel = zoomLevel * ((e.deltaY - width) / -width)
+    xToSamples = screenOffsetToSampleOffset model newZoomLevel 
+    deltaSampleOffset = xToSamples (e.deltaX * panSpeed)
+    newSampleOffset = sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (e.deltaY)) / 2)
+  in
+    { model
+    | zoomLevel = newZoomLevel
+    , sampleOffset = newSampleOffset
+    }
 
 playbackControlsView : FileLoadedModel -> Html Msg
 playbackControlsView { playbackStatus } =
