@@ -467,8 +467,8 @@ screenOffsetToSampleOffset : FileLoadedModel -> Float -> Float -> Int
 screenOffsetToSampleOffset model zoomLevel screenOffset =
   round <| ( toFloat model.fileInfo.numSamples  / (model.soundwaveDimensions.width * zoomLevel)  * screenOffset)
 
-calculateNewDisplayParams : FileLoadedModel -> Float -> Float -> { newZoomLevel: Float, newSampleOffset: Int }
-calculateNewDisplayParams model deltaX deltaY =
+calculateNewDisplayParams : FileLoadedModel -> Float -> Float -> Float -> { newZoomLevel: Float, newSampleOffset: Int }
+calculateNewDisplayParams model centerPoint deltaX deltaY =
   let
     width = model.soundwaveDimensions.width
     newZoomLevel = max 1 <| model.zoomLevel * ((deltaY - width) / -width)
@@ -476,7 +476,7 @@ calculateNewDisplayParams model deltaX deltaY =
     deltaSampleOffset = xToSamples (deltaX)
     maxSampleOffset = model.fileInfo.numSamples - screenOffsetToSampleOffset model newZoomLevel width
     newSampleOffset = clamp 0 maxSampleOffset <|
-      model.sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (deltaY)) / 2)
+      model.sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (deltaY)) * centerPoint)
   in
     { newZoomLevel = newZoomLevel
     , newSampleOffset = newSampleOffset
@@ -491,7 +491,7 @@ updateOnGesture e ({ gestureState } as model) =
       Gestures.PointingSingle p -> (p.distanceMoved.x, 0)
       Gestures.PointingDouble p -> (p.distanceMoved.x, p.distanceZoomed)
 
-    { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model deltaX deltaY
+    { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model 0.5 deltaX deltaY
   in
     { model
     | zoomLevel = newZoomLevel
@@ -502,7 +502,9 @@ updateOnGesture e ({ gestureState } as model) =
 updateOnWheel : WheelEvent -> FileLoadedModel -> FileLoadedModel
 updateOnWheel e model = 
   let
-    { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model e.deltaX e.deltaY
+    centerPoint = case model.mouseState of
+      JustMovingMouse { pointerX } -> pointerX / model.soundwaveDimensions.width
+    { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model centerPoint e.deltaX e.deltaY
   in
     { model
     | zoomLevel = newZoomLevel
