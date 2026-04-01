@@ -1,6 +1,5 @@
 module Gestures exposing (..)
 
-import Dict exposing (Dict)
 import Html.Events exposing (on)
 import Html
 import Json.Decode as D

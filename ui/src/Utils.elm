@@ -7,7 +7,7 @@ import Bytes as B
 import Base64.Decode as B64
 
 import Array exposing (Array)
-import Array as A
+import Array
 
 httpErrorToString : Http.Error -> String
 httpErrorToString error =
@@ -57,6 +57,3 @@ decodeSamplesB64 b64 numSamples =
         BD.decode (floatListReverseDecoder numSamples) bytes
     )
     |> Result.map (Array.fromList << List.reverse)
-
-cmdFromMsg : msg -> Cmd msg
-cmdFromMsg m = Cmd.map (always m) Cmd.none
