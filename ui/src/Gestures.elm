@@ -27,6 +27,7 @@ type PointerState
   | PointingDouble
     { distanceMoved : Coord
     , distanceZoomed : Float
+    , pointerMidPoint : Coord
     , pointer1: Pointer
     , pointer2: Pointer
     }
@@ -51,6 +52,7 @@ updateState ev state = case (ev, state) of
      PointingDouble
       { pointer1 = p.pointer
       , pointer2 = { pointerId = pointerId, position = clientCoords, startPosition = clientCoords }
+      , pointerMidPoint = midPoint clientCoords p.pointer.position
       , distanceMoved = p.distanceMoved
       , distanceZoomed = 0
       }
@@ -76,6 +78,7 @@ updateState ev state = case (ev, state) of
         { p
         | pointer1 = newPointer1
         , pointer2 = newPointer2
+        , pointerMidPoint = (midPoint newPointer1.position newPointer2.position)
         , distanceZoomed =
           (distance p.pointer1.position p.pointer2.position) -
           (distance newPointer1.position newPointer2.position)
