@@ -18,10 +18,12 @@ type alias ResizeEvent =
   { elementId: String
   , newWidth: Float
   , newHeight: Float
+  , newXOffset: Float
   }
 
 decode : D.Decoder ResizeEvent
-decode = D.map3 ResizeEvent
+decode = D.map4 ResizeEvent
   ( D.field "elementId" D.string )
   ( D.field "newWidth" D.float )
   ( D.field "newHeight" D.float )
+  ( D.field "newXOffset" D.float )

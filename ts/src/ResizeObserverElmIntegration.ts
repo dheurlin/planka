@@ -33,6 +33,7 @@ export class ResizeObserverElmIntegration {
         elementId: elem.target.id,
         newWidth: elem.contentRect.width,
         newHeight: elem.contentRect.height,
+        newXOffset: elem.target.getBoundingClientRect().x,
       });
     }
   });

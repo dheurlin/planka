@@ -54,7 +54,7 @@ type Model
 type alias FileLoadedModel =
   { parameters: PlaybackParameters
   , fileInfo: FileInfo
-  , soundwaveDimensions: { height: Float, width: Float }
+  , soundwaveDimensions: { height: Float, width: Float, xOffset: Float }
   , playbackStatus:
     { playingStatus: PlayingStatus
     , progressInSamples: Int
@@ -69,7 +69,7 @@ initialFileLoadedModel : FileInfo -> FileLoadedModel
 initialFileLoadedModel i =
   { parameters = { playbackSpeed = 1, pitchShiftFactor = 1 }
   , fileInfo = i
-  , soundwaveDimensions = { height = 0, width = 0 }
+  , soundwaveDimensions = { height = 0, width = 0, xOffset = 0 }
   , playbackStatus =
       { playingStatus = Paused
       , progressInSamples = 0
@@ -95,7 +95,7 @@ type Msg
   | ClickedPlay
   | ClickedPause
   | GotPlaybackProgress { progressInSamples: Int }
-  | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float }
+  | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float, newXOffset: Float }
   | GotGestureEvent Gestures.PointerMsg
   | GotWheelEvent WheelEvent
   | OccuredError String
@@ -179,7 +179,7 @@ update msg model =
       "sound-wave-svg-wrapper" ->
         ( FileLoaded
           { data
-          | soundwaveDimensions = { width = ev.newWidth, height = ev.newHeight }
+          | soundwaveDimensions = { width = ev.newWidth, height = ev.newHeight, xOffset = ev.newXOffset }
           }
         , Cmd.none
         )
@@ -219,6 +219,7 @@ subscriptions model =
               { elementId = ev.elementId
               , newWidth = ev.newWidth
               , newHeight = ev.newHeight
+              , newXOffset = ev.newXOffset
               }
 
             Err e -> OccuredError e
