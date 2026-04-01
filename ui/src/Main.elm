@@ -26,7 +26,7 @@ import Html.Attributes exposing
 import Svg as S
 import Svg.Attributes as S
 
-import Html.Events exposing (on, onClick)
+import Html.Events exposing (on, preventDefaultOn, onClick)
 import Json.Decode as D
 import Bytes exposing ( Endianness(..) )
 import Array exposing (Array)
@@ -64,6 +64,7 @@ type alias FileLoadedModel =
   , gestureState: Gestures.PointerState
   , zoomLevel: Float
   , sampleOffset: Int
+  , sampleSelection: { lower: Int, upper: Int }
   }
 
 initialFileLoadedModel : FileInfo -> FileLoadedModel
@@ -78,6 +79,7 @@ initialFileLoadedModel i =
   , gestureState = Gestures.None
   , zoomLevel = 1
   , sampleOffset = 0
+  , sampleSelection = { lower = 0, upper = i.numSamples }
   }
 
 type PlayingStatus = Playing | Paused
@@ -114,7 +116,7 @@ init flags = initWith FileSelectModel GotFileSelectMsg FileSelect.init flags
 initLoaded : FileLoadedModel -> ( Model, Cmd Msg )
 initLoaded m =
   ( FileLoaded m
-  , ResizeObserver.observeElement "sound-wave-container"
+  , ResizeObserver.observeElement "sound-wave-svg-wrapper"
   )
 
 update: Msg -> Model -> (Model, Cmd Msg)
@@ -176,7 +178,7 @@ update msg model =
       )
 
     ( GotResizeEvent ev, FileLoaded data ) -> case ev.elementId of
-      "sound-wave-container" ->
+      "sound-wave-svg-wrapper" ->
         ( FileLoaded
           { data
           | soundwaveDimensions = { width = ev.newWidth, height = ev.newHeight }
@@ -343,33 +345,70 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , Gestures.onPointerDown GotGestureEvent
       , Gestures.onPointerUp GotGestureEvent
       , Gestures.onPointerMove GotGestureEvent
-      , on "wheel" (D.map GotWheelEvent wheelDecoder)
+      , preventDefaultOn "wheel" (D.map (\msg -> (GotWheelEvent msg, True)) wheelDecoder)
       ]
-      [ S.svg
-        [ S.class "sound-wave-svg"
-        , S.width widthStr
-        , S.height heightStr
-        , S.viewBox <| "0 0 " ++ widthStr ++ " " ++ heightStr
-        ]
-        [ S.polyline 
-          [ S.points <| stringifyLinePoints linePoints
-          , S.class "sound-line"
+      [ div [ id "sound-wave-svg-wrapper" ]
+        [ S.svg
+          [ S.class "sound-wave-svg"
+          , S.width widthStr
+          , S.height heightStr
+          , S.viewBox <| "0 0 " ++ widthStr ++ " " ++ heightStr
           ]
-          [  ]
+          [ S.rect
+            [ S.class "selection-background"
+            , S.height heightStr
+            , S.width
+                ( absoluteSampleIndexToXCoord params (model.sampleSelection.upper - model.sampleSelection.lower)
+                |> min width
+                |> String.fromFloat
+                ) 
+            , S.y "0"
+            , S.x
+                ( absoluteSampleIndexToXCoord params (model.sampleSelection.lower)
+                |> max 0
+                |> String.fromFloat
+                )
+            ]
+            [ ]
+          , S.polyline 
+            [ S.points <| stringifyLinePoints linePoints
+            , S.class "sound-line"
+            ]
+            [  ]
+          ]
         ]
+      , divAtSamplePosition
+          params
+          "progress-indicator"
+          playbackStatus.progressInSamples
+          (playbackStatus.progressInSamples - 1)
+      , divAtSamplePosition
+          params
+          "selection-foreground"
+          model.sampleSelection.lower
+          model.sampleSelection.upper
       , div
-        [ class "progress-indicator"
-        , attribute "style" <| "--x-position: " ++
-          ( absoluteSampleIndexToXCoord params playbackStatus.progressInSamples
-          |> String.fromFloat
-          |> \s -> s ++ "px;"
-          )
+        [ class "debug-stuff" ]
+        [ text <| "Width: " ++ widthStr ++ ", Height: " ++ heightStr
+        , br [] []
+        , text <| "Progress: " ++ String.fromFloat (100 * toFloat playbackStatus.progressInSamples / toFloat (Array.length channelData)) ++ " %"
         ]
-        [ ]
-      , text <| "Width: " ++ widthStr ++ ", Height: " ++ heightStr
-      , br [] []
-      , text <| "Progress: " ++ String.fromFloat (100 * toFloat playbackStatus.progressInSamples / toFloat (Array.length channelData)) ++ " %"
       ]
+
+divAtSamplePosition : SoundWaveParams -> String -> Int -> Int -> Html msg
+divAtSamplePosition params className start end =
+  div
+    [ class className
+    , attribute "style" <| String.concat
+      [ "--x-position:"
+      , absoluteSampleIndexToXCoord params start |> String.fromFloat
+      , "px;"
+      , "--width:"
+      , absoluteSampleIndexToXCoord params (end - start) |> String.fromFloat
+      , "px;"
+      ]
+    ]
+    [ ]
 
 stringifyLinePoints : Array (Float, Float) -> String
 stringifyLinePoints = Array.foldl (\(x, y) acc -> acc ++ (String.fromFloat x) ++ "," ++ (String.fromFloat y) ++ " ") ""

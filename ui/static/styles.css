@@ -18,27 +18,64 @@ body {
 }
 
 #sound-wave-container {
+  --soundwave-height: 150px;
+  --container-height: 200px;
+
   position: relative;
   border: 1px dashed olive;
-  height: 200px;
+  height: var(--container-height);
+  overflow: clip;
+  display: flex;
+  align-items: center;
+
+  #sound-wave-svg-wrapper {
+    position: absolute;
+    height: var(--soundwave-height);
+    width: 100%
+  }
+
+  .debug-stuff {
+    position: absolute;
+    top: calc((var(--container-height) - var(--soundwave-height)) / 2);
+    z-index: 1;
+    color: white;
+  }
 
   .sound-wave-svg {
     position: absolute;
     top: 0;
     bottom: 0;
     left: 0;
+    right: 0;
+    height: var(--soundwave-height);
   }
 
   .sound-line {
     fill: none;
-    stroke: green;
+    stroke: black;
     stroke-width: 1;
+  }
+
+  .selection-background {
+    fill: blue;
+  }
+
+  .selection-foreground {
+    position: absolute;
+    left: 0;
+    transform: translateX(calc(-50% + var(--x-position)));
+    width: var(--width);
+    height: var(--soundwave-height);
+
+    background-color: rgba(0, 0, 255, 0.2);
+    cursor: grab;
   }
 
   .progress-indicator {
     position: absolute;
-    top: 0;
-    bottom: 0;
+    height: var(--soundwave-height);
+    /* top: 0; */
+    /* bottom: 0; */
     left: 0;
     transform: translateX(calc(-50% + var(--x-position)));
 
