@@ -349,6 +349,7 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       [ div [ id "sound-wave-svg-wrapper" ]
         [ S.svg
           [ S.class "sound-wave-svg"
+          , S.class <| if zoomLevel > 1 then "scrollable" else ""
           , S.width widthStr
           , S.height heightStr
           , S.viewBox <| "0 0 " ++ widthStr ++ " " ++ heightStr
