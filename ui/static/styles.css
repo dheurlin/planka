@@ -56,19 +56,49 @@ body {
     stroke-width: 1;
   }
 
+  .svg-background {
+    fill: orange;
+  }
+
   .selection-background {
     fill: blue;
   }
 
   .selection-foreground {
     position: absolute;
-    left: 0;
-    transform: translateX(calc(-50% + var(--x-position)));
+    left: var(--x-position);
     width: var(--width);
-    height: var(--soundwave-height);
+    /* height: var(--soundwave-height); */
+    height: 100%;
 
-    background-color: rgba(0, 0, 255, 0.2);
-    cursor: grab;
+    .fill {
+      position: absolute;
+      top: calc((var(--container-height) - var(--soundwave-height)) / 2);
+      height: var(--soundwave-height);
+      left: 0;
+      right: 0;
+      width: 100%;
+      background-color: rgba(0, 50, 255, 0.5);
+      cursor: grab;
+    }
+
+    .marker {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 10px;
+      cursor: ew-resize;
+
+      &.left {
+        left: 0;
+        border-left: 4px solid green;
+      }
+
+      &.right {
+        right: 0;
+        border-right: 4px solid green;
+      }
+    }
   }
 
   .progress-indicator {

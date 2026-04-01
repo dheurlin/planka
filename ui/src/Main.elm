@@ -77,7 +77,7 @@ initialFileLoadedModel i =
   , gestureState = Gestures.None
   , zoomLevel = 1
   , sampleOffset = 0
-  , sampleSelection = { lower = 0, upper = i.numSamples }
+  , sampleSelection = { lower = 40000, upper = i.numSamples - 70000 }
   }
 
 type PlayingStatus = Playing | Paused
@@ -353,17 +353,23 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
           , S.viewBox <| "0 0 " ++ widthStr ++ " " ++ heightStr
           ]
           [ S.rect
+            [ S.class "svg-background"
+            , S.x "0"
+            , S.y "0"
+            , S.width widthStr
+            , S.height heightStr
+            ]
+            [ ]
+          , S.rect
             [ S.class "selection-background"
             , S.height heightStr
             , S.width
-                ( absoluteSampleIndexToXCoord params (model.sampleSelection.upper - model.sampleSelection.lower)
-                |> min width
+                ( absoluteSampleIntervalToXInterval params (model.sampleSelection.lower, model.sampleSelection.upper)
                 |> String.fromFloat
                 ) 
             , S.y "0"
             , S.x
                 ( absoluteSampleIndexToXCoord params (model.sampleSelection.lower)
-                |> max 0
                 |> String.fromFloat
                 )
             ]
@@ -380,11 +386,16 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
           "progress-indicator"
           playbackStatus.progressInSamples
           (playbackStatus.progressInSamples - 1)
+          [ ]
       , divAtSamplePosition
           params
           "selection-foreground"
           model.sampleSelection.lower
           model.sampleSelection.upper
+          [ div [ class "fill" ] []
+          , div [ class "marker left" ] [ ]
+          , div [ class "marker right" ] [ ]
+          ]
       , div
         [ class "debug-stuff" ]
         [ text <| "Width: " ++ widthStr ++ ", Height: " ++ heightStr
@@ -393,20 +404,23 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
         ]
       ]
 
-divAtSamplePosition : SoundWaveParams -> String -> Int -> Int -> Html msg
+divAtSamplePosition : SoundWaveParams -> String -> Int -> Int -> List (Html msg) -> Html msg
 divAtSamplePosition params className start end =
-  div
-    [ class className
-    , attribute "style" <| String.concat
-      [ "--x-position:"
-      , absoluteSampleIndexToXCoord params start |> String.fromFloat
-      , "px;"
-      , "--width:"
-      , absoluteSampleIndexToXCoord params (end - start) |> String.fromFloat
-      , "px;"
+  let
+      startX = absoluteSampleIndexToXCoord params start 
+      endX = absoluteSampleIndexToXCoord params end 
+  in
+    div
+      [ class className
+      , attribute "style" <| String.concat
+        [ "--x-position:"
+        , startX |> String.fromFloat
+        , "px;"
+        , "--width:"
+        , endX - startX |> String.fromFloat
+        , "px;"
+        ]
       ]
-    ]
-    [ ]
 
 stringifyLinePoints : Array (Float, Float) -> String
 stringifyLinePoints = Array.foldl (\(x, y) acc -> acc ++ (String.fromFloat x) ++ "," ++ (String.fromFloat y) ++ " ") ""
@@ -423,6 +437,13 @@ sampleToLinePoint { dims } sampleLength index value =
 absoluteSampleIndexToXCoord : SoundWaveParams -> Int -> Float
 absoluteSampleIndexToXCoord { numSamples, dims, zoomLevel, sampleOffset } sampleIndex =
   (toFloat (sampleIndex - ceiling (toFloat sampleOffset)) / toFloat numSamples) * Tuple.first dims * zoomLevel
+
+absoluteSampleIntervalToXInterval : SoundWaveParams -> (Int, Int) -> Float
+absoluteSampleIntervalToXInterval params (start, end) =
+  let
+    startX = absoluteSampleIndexToXCoord params start
+    endX = absoluteSampleIndexToXCoord params end
+  in endX - startX
 
 screenOffsetToSampleOffset : FileLoadedModel -> Float -> Float -> Int
 screenOffsetToSampleOffset model zoomLevel screenOffset =
