@@ -63,7 +63,11 @@ type alias FileLoadedModel =
   , zoomLevel: Float
   , sampleOffset: Int
   , sampleSelection: { lower: Int, upper: Int }
+  , mouseState: MouseState
   }
+
+type MouseState
+  = JustMovingMouse { pointerX: Float, pointerY: Float }
 
 initialFileLoadedModel : FileInfo -> FileLoadedModel
 initialFileLoadedModel i =
@@ -78,6 +82,7 @@ initialFileLoadedModel i =
   , zoomLevel = 1
   , sampleOffset = 0
   , sampleSelection = { lower = 40000, upper = i.numSamples - 70000 }
+  , mouseState = JustMovingMouse { pointerX = 0, pointerY = 0 }
   }
 
 type PlayingStatus = Playing | Paused
@@ -98,8 +103,12 @@ type Msg
   | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float, newXOffset: Float }
   | GotGestureEvent Gestures.PointerMsg
   | GotWheelEvent WheelEvent
+  | GotMouseEvent MouseMsg
   | OccuredError String
   | Irrelevant
+
+type MouseMsg
+  = MouseMove MouseEvent
 
 initWith : (subModel -> Model) -> (subMsg -> Msg) -> (flags -> ( subModel, subMsg )) -> flags -> ( Model, Cmd Msg )
 initWith toModel toMsg initFn flags =
@@ -189,6 +198,8 @@ update msg model =
     ( GotGestureEvent e, FileLoaded data ) -> ( FileLoaded <| updateOnGesture e data, Cmd.none )
 
     ( GotWheelEvent e, FileLoaded data ) -> ( FileLoaded <| updateOnWheel e data, Cmd.none )
+
+    ( GotMouseEvent e, FileLoaded data ) -> updateOnMouse e data |> updateWith FileLoaded identity model
 
     ( OccuredError e, _) -> ( Debug.log e model, Cmd.none ) -- TODO Better error handling?
 
@@ -329,6 +340,8 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
     height = soundwaveDimensions.height
     widthStr = String.fromFloat width
     heightStr = String.fromFloat height
+    ( pointerX, pointerY ) = case model.mouseState of
+      JustMovingMouse m -> ( m.pointerX, m.pointerY )
     params : SoundWaveParams
     params =
       { dims = (width, height)
@@ -344,7 +357,8 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , Gestures.onPointerDown GotGestureEvent
       , Gestures.onPointerUp GotGestureEvent
       , Gestures.onPointerMove GotGestureEvent
-      , preventDefaultOn "wheel" (D.map (\msg -> (GotWheelEvent msg, True)) wheelDecoder)
+      , preventDefaultOn "wheel" (D.map (alwaysPrevent << GotWheelEvent) wheelDecoder)
+      , on "mousemove" <| D.map (GotMouseEvent << MouseMove) mouseEventDecoder
       ]
       [ div [ id "sound-wave-svg-wrapper" ]
         [ S.svg
@@ -403,6 +417,8 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
         [ text <| "Width: " ++ widthStr ++ ", Height: " ++ heightStr
         , br [] []
         , text <| "Progress: " ++ String.fromFloat (100 * toFloat playbackStatus.progressInSamples / toFloat (Array.length channelData)) ++ " %"
+        , br [] []
+        , text <| "Pointer: (" ++ String.fromFloat pointerX ++ ", " ++ String.fromFloat pointerY ++ ")"
         ]
       ]
 
@@ -493,6 +509,20 @@ updateOnWheel e model =
     , sampleOffset = newSampleOffset
     }
 
+updateOnMouse : MouseMsg -> FileLoadedModel -> ( FileLoadedModel, Cmd Msg )
+updateOnMouse e model =
+  let
+    elemXOffset = model.soundwaveDimensions.xOffset
+  in case (e, model.mouseState) of
+    (MouseMove m, JustMovingMouse _) ->
+      ( { model
+        | mouseState = JustMovingMouse
+          { pointerX = m.screenX - elemXOffset
+          , pointerY = m.offsetY }
+        }
+      , Cmd.none
+      )
+
 playbackControlsView : FileLoadedModel -> Html Msg
 playbackControlsView { playbackStatus } =
   let
@@ -526,3 +556,20 @@ wheelDecoder = D.map3 (\x y z -> { deltaX = x, deltaY = y, deltaZ = z })
   ( D.field "deltaX" D.float )
   ( D.field "deltaY" D.float )
   ( D.field "deltaZ" D.float )
+
+type alias MouseEvent =
+  { offsetX : Float
+  , offsetY : Float
+  , screenX : Float
+  , screenY : Float
+  }
+
+mouseEventDecoder : D.Decoder MouseEvent
+mouseEventDecoder = D.map4 (\x y sx sy -> { offsetX = x, offsetY = y, screenX = sx, screenY = sy })
+  ( D.field "offsetX" D.float )
+  ( D.field "offsetY" D.float )
+  ( D.field "screenX" D.float )
+  ( D.field "screenY" D.float )
+
+alwaysPrevent : msg -> ( msg, Bool )
+alwaysPrevent msg = ( msg, True )
