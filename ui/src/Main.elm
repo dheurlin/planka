@@ -395,10 +395,12 @@ calculateNewDisplayParams : FileLoadedModel -> Float -> Float -> { newZoomLevel:
 calculateNewDisplayParams model deltaX deltaY =
   let
     width = model.soundwaveDimensions.width
-    newZoomLevel = model.zoomLevel * ((deltaY - width) / -width)
+    newZoomLevel = max 1 <| model.zoomLevel * ((deltaY - width) / -width)
     xToSamples = screenOffsetToSampleOffset model newZoomLevel
     deltaSampleOffset = xToSamples (deltaX)
-    newSampleOffset = model.sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (deltaY)) / 2)
+    maxSampleOffset = model.fileInfo.numSamples - screenOffsetToSampleOffset model newZoomLevel width
+    newSampleOffset = clamp 0 maxSampleOffset <|
+      model.sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (deltaY)) / 2)
   in
     { newZoomLevel = newZoomLevel
     , newSampleOffset = newSampleOffset
