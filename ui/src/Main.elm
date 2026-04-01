@@ -300,16 +300,16 @@ targetValueFloatDecoder =
 numSamplesToDisplay : Int
 numSamplesToDisplay = 10000 -- Seems to render fast enough, and look OK
 
-type alias DownSampledSamples = Array { originalIndex: Int, value: Float }
-
-downSample : Int -> Array Float -> DownSampledSamples
-downSample targetLength arr = Array.initialize targetLength <| \i ->
+downSample : Int -> Float -> Int -> Array Float -> Array Float
+downSample sampleOffset zoomLevel targetLength arr =
   let
-    stride = floor <| toFloat (Array.length arr) / toFloat targetLength
+    lower = sampleOffset
+    numSamplesFromSrc = (toFloat (Array.length arr) / zoomLevel)
+    stride = numSamplesFromSrc / toFloat targetLength
+    indicesToPick = List.range 0 (targetLength - 1) |> List.map (\i -> round <| toFloat i * stride + toFloat lower)
+    values = List.map (\i -> Array.get i arr |> Maybe.withDefault 1) indicesToPick
   in
-    { originalIndex = i
-    , value = Array.get (i * stride) arr |> Maybe.withDefault 1
-    }
+    Array.fromList values
 
 type alias SoundWaveParams =
   { dims : (Float, Float)
@@ -334,11 +334,9 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , zoomLevel = zoomLevel
       , sampleOffset = sampleOffset
       , numSamples = Array.length fileInfo.channelData
-      -- , numSamples = numSamplesToDisplay
       }
-    stride = round <| (toFloat <| Array.length channelData) / toFloat numSamplesToDisplay
-    downSampled = downSample numSamplesToDisplay fileInfo.channelData
-    linePoints = samplesToLinePoints params stride downSampled
+    downSampled = downSample sampleOffset zoomLevel numSamplesToDisplay fileInfo.channelData
+    linePoints = samplesToLinePoints params downSampled
   in
     div
       [ id "sound-wave-container"
@@ -362,7 +360,7 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , div
         [ class "progress-indicator"
         , attribute "style" <| "--x-position: " ++
-          ( sampleIndexToXCoord params 1 playbackStatus.progressInSamples
+          ( absoluteSampleIndexToXCoord params playbackStatus.progressInSamples
           |> String.fromFloat
           |> \s -> s ++ "px;"
           )
@@ -376,22 +374,18 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
 stringifyLinePoints : Array (Float, Float) -> String
 stringifyLinePoints = Array.foldl (\(x, y) acc -> acc ++ (String.fromFloat x) ++ "," ++ (String.fromFloat y) ++ " ") ""
 
-samplesToLinePoints : SoundWaveParams -> Int -> DownSampledSamples -> Array (Float, Float)
-samplesToLinePoints params stride arr = Array.map (sampleToLinePoint params stride) arr
+samplesToLinePoints : SoundWaveParams -> Array Float -> Array (Float, Float)
+samplesToLinePoints params arr = Array.indexedMap (sampleToLinePoint params (Array.length arr)) arr
 
-sampleToLinePoint : SoundWaveParams -> Int ->  { originalIndex: Int, value: Float } -> (Float, Float)
-sampleToLinePoint params stride { originalIndex, value } =
-  ( sampleIndexToXCoord params stride originalIndex
-  , (Tuple.second params.dims / 2) - value * Tuple.second params.dims
+sampleToLinePoint : SoundWaveParams -> Int -> Int -> Float -> (Float, Float)
+sampleToLinePoint { dims } sampleLength index value =
+  ( toFloat index * (Tuple.first dims / toFloat sampleLength)
+  , (Tuple.second dims / 2) - value * Tuple.second dims
   )
 
-sampleIndexToXCoord : SoundWaveParams -> Int -> Int -> Float
-sampleIndexToXCoord { numSamples, dims, zoomLevel, sampleOffset } stride sampleIndex =
-  (toFloat (sampleIndex - ceiling (toFloat sampleOffset / toFloat stride)) / toFloat numSamples) * Tuple.first dims * zoomLevel * toFloat stride
-
--- sampleOffsetToScreenOffset : FileLoadedModel -> Float -> Int -> Float
--- sampleOffsetToScreenOffset model zoomLevel =
-
+absoluteSampleIndexToXCoord : SoundWaveParams -> Int -> Float
+absoluteSampleIndexToXCoord { numSamples, dims, zoomLevel, sampleOffset } sampleIndex =
+  (toFloat (sampleIndex - ceiling (toFloat sampleOffset)) / toFloat numSamples) * Tuple.first dims * zoomLevel
 
 screenOffsetToSampleOffset : FileLoadedModel -> Float -> Float -> Int
 screenOffsetToSampleOffset model zoomLevel screenOffset =
