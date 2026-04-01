@@ -83,7 +83,7 @@ updateState ev state = case (ev, state) of
           (distance p.pointer1.position p.pointer2.position) -
           (distance newPointer1.position newPointer2.position)
         , distanceMoved = coordDiff
-            (midPoint newPointer1.position newPointer2.position)
+            (midPoint p.pointer1.position p.pointer2.position)
             (midPoint newPointer1.position newPointer2.position)
         }
 
