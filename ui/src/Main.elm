@@ -6,7 +6,6 @@ import Html exposing
   ( Html
   , div
   , text
-  , p
   , input
   , label
   , footer
@@ -28,7 +27,6 @@ import Svg.Attributes as S
 
 import Html.Events exposing (on, onClick)
 import Json.Decode as D
-import Bytes exposing ( Endianness(..) )
 import Array exposing (Array)
 
 import MessageFromUI as FromUI

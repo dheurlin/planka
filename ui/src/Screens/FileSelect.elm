@@ -1,4 +1,4 @@
-module Screens.FileSelect exposing (Model(..), Msg(..), init, subscriptions, update, view)
+module Screens.FileSelect exposing (Model, Msg(..), init, subscriptions, update, view)
 
 import Array exposing (Array)
 import Json.Decode as D
@@ -9,15 +9,9 @@ import Html exposing
   , p
   , input
   )
-import Html.Events exposing ( on, onClick )
+import Html.Events exposing ( on )
 import Html.Attributes exposing
   ( type_
-  , attribute
-  , value
-  , for
-  , id
-  , class
-  , attribute
   )
 import Http
 

@@ -9,6 +9,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "node esbuild.mts",
     "build:watch": "node esbuild.mts --watch",
+    "elm-review": "npx elm-review --elmjson ../ui/elm.json",
     "typecheck:watch": "tsc --watch --noemit",
     "dev": "concurrently -n 'SERVER,ESBUILD,TSC' -c 'bgYellow.black,bgCyan.black,bgMagenta' 'npm run serve' 'npm run build:watch' 'npm run typecheck:watch'",
     "dev:mock": "concurrently -n 'SERVER,ESBUILD,TSC' -c 'bgYellow.black,bgCyan.black,bgMagenta' 'npm run serve' 'node esbuild.mts --watch --use-mock-samples' 'npm run typecheck:watch'"
@@ -21,6 +22,7 @@
     "@types/audioworklet": "^0.0.96",
     "@types/node": "^25.5.0",
     "concurrently": "^9.2.1",
+    "elm-review": "2.13.5",
     "esbuild": "0.27.4",
     "esbuild-plugin-elm": "^0.0.12",
     "typescript": "^5.9.3"
