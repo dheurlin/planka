@@ -485,13 +485,14 @@ calculateNewDisplayParams model centerPoint deltaX deltaY =
 updateOnGesture : Gestures.PointerMsg -> FileLoadedModel -> FileLoadedModel
 updateOnGesture e ({ gestureState } as model) =
   let
+    width = model.soundwaveDimensions.width
     newGestureState = Gestures.updateState e gestureState
-    (deltaX, deltaY) = case newGestureState of
-      Gestures.None -> (0, 0)
-      Gestures.PointingSingle p -> (p.distanceMoved.x, 0)
-      Gestures.PointingDouble p -> (p.distanceMoved.x, p.distanceZoomed)
+    (deltaX, deltaY, centerPoint) = case newGestureState of
+      Gestures.None -> (0, 0, 0.5)
+      Gestures.PointingSingle p -> (p.distanceMoved.x, 0, 0.5)
+      Gestures.PointingDouble p -> (p.distanceMoved.x, p.distanceZoomed, p.pointerMidPoint.x / width)
 
-    { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model 0.5 deltaX deltaY
+    { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model centerPoint deltaX deltaY
   in
     { model
     | zoomLevel = newZoomLevel
