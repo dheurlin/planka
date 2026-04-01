@@ -405,7 +405,6 @@ updateOnGesture e ({ zoomLevel, gestureState, sampleOffset, soundwaveDimensions 
     xToSamples = screenOffsetToSampleOffset model newZoomLevel 
     deltaSampleOffset = xToSamples (deltaX)
     newSampleOffset = sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (deltaY)) / 2)
-    _ = Debug.log "DeltaX" deltaX
   in
     { model
     | zoomLevel = newZoomLevel
