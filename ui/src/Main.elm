@@ -391,20 +391,29 @@ screenOffsetToSampleOffset : FileLoadedModel -> Float -> Float -> Int
 screenOffsetToSampleOffset model zoomLevel screenOffset =
   round <| ( toFloat model.fileInfo.numSamples  / (model.soundwaveDimensions.width * zoomLevel)  * screenOffset)
 
+calculateNewDisplayParams : FileLoadedModel -> Float -> Float -> { newZoomLevel: Float, newSampleOffset: Int }
+calculateNewDisplayParams model deltaX deltaY =
+  let
+    width = model.soundwaveDimensions.width
+    newZoomLevel = model.zoomLevel * ((deltaY - width) / -width)
+    xToSamples = screenOffsetToSampleOffset model newZoomLevel
+    deltaSampleOffset = xToSamples (deltaX)
+    newSampleOffset = model.sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (deltaY)) / 2)
+  in
+    { newZoomLevel = newZoomLevel
+    , newSampleOffset = newSampleOffset
+    }
+
 updateOnGesture : Gestures.PointerMsg -> FileLoadedModel -> FileLoadedModel
-updateOnGesture e ({ zoomLevel, gestureState, sampleOffset, soundwaveDimensions } as model) =
+updateOnGesture e ({ gestureState } as model) =
   let
     newGestureState = Gestures.updateState e gestureState
-    width = soundwaveDimensions.width
     (deltaX, deltaY) = case newGestureState of
       Gestures.None -> (0, 0)
       Gestures.PointingSingle p -> (p.distanceMoved.x, 0)
       Gestures.PointingDouble p -> (p.distanceMoved.x, p.distanceZoomed)
 
-    newZoomLevel = zoomLevel * ((deltaY - width) / -width)
-    xToSamples = screenOffsetToSampleOffset model newZoomLevel 
-    deltaSampleOffset = xToSamples (deltaX)
-    newSampleOffset = sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (deltaY)) / 2)
+    { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model deltaX deltaY
   in
     { model
     | zoomLevel = newZoomLevel
@@ -413,14 +422,9 @@ updateOnGesture e ({ zoomLevel, gestureState, sampleOffset, soundwaveDimensions 
     }
 
 updateOnWheel : WheelEvent -> FileLoadedModel -> FileLoadedModel
-updateOnWheel e ({zoomLevel, sampleOffset} as model) = 
+updateOnWheel e model = 
   let
-    width = model.soundwaveDimensions.width
-    panSpeed = 2
-    newZoomLevel = zoomLevel * ((e.deltaY - width) / -width)
-    xToSamples = screenOffsetToSampleOffset model newZoomLevel 
-    deltaSampleOffset = xToSamples (e.deltaX * panSpeed)
-    newSampleOffset = sampleOffset + deltaSampleOffset - round (toFloat (xToSamples (e.deltaY)) / 2)
+    { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model e.deltaX e.deltaY
   in
     { model
     | zoomLevel = newZoomLevel
