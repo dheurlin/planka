@@ -520,7 +520,7 @@ updateOnMouse e model =
     (MouseMove m, JustMovingMouse _) ->
       ( { model
         | mouseState = JustMovingMouse
-          { pointerX = m.screenX - elemXOffset
+          { pointerX = m.pageX - elemXOffset
           , pointerY = m.offsetY }
         }
       , Cmd.none
@@ -563,16 +563,16 @@ wheelDecoder = D.map3 (\x y z -> { deltaX = x, deltaY = y, deltaZ = z })
 type alias MouseEvent =
   { offsetX : Float
   , offsetY : Float
-  , screenX : Float
-  , screenY : Float
+  , pageX : Float
+  , pageY : Float
   }
 
 mouseEventDecoder : D.Decoder MouseEvent
-mouseEventDecoder = D.map4 (\x y sx sy -> { offsetX = x, offsetY = y, screenX = sx, screenY = sy })
+mouseEventDecoder = D.map4 (\x y sx sy -> { offsetX = x, offsetY = y, pageX = sx, pageY = sy })
   ( D.field "offsetX" D.float )
   ( D.field "offsetY" D.float )
-  ( D.field "screenX" D.float )
-  ( D.field "screenY" D.float )
+  ( D.field "pageX" D.float )
+  ( D.field "pageY" D.float )
 
 alwaysPrevent : msg -> ( msg, Bool )
 alwaysPrevent msg = ( msg, True )
