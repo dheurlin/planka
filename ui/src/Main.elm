@@ -84,7 +84,7 @@ initialFileLoadedModel i =
   , gestureState = Gestures.None
   , zoomLevel = 1
   , sampleOffset = 0
-  , sampleSelection = { lower = 40000, upper = i.numSamples - 70000 }
+  , sampleSelection = { lower = 0, upper = i.numSamples - 1 }
   , mouseState = JustMovingMouse { pointerX = 0, pointerY = 0 }
   }
 
