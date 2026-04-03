@@ -85,17 +85,36 @@ body {
       position: absolute;
       top: 0;
       bottom: 0;
-      width: 10px;
+      width: 0px;
+      border-left: 4px solid green;
       cursor: col-resize;
+
+      &:before, &:after {
+        content: "";
+        display: block;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+      }
+
+      --touch-radius: 15px;
+
+      &:before {
+        left: calc(-1 * var(--touch-radius));
+        right: 0;
+      }
+
+      &:after {
+        right: calc(-1 * var(--touch-radius));
+        left: 0;
+      }
 
       &.left {
         left: 0;
-        border-left: 4px solid green;
       }
 
       &.right {
         right: 0;
-        border-right: 4px solid green;
       }
     }
   }
