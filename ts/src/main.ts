@@ -74,6 +74,14 @@ ui.ports.sendMessage?.subscribe(async (message: any) => {
       } satisfies PlaybackProcessorMessage);
     break;
 
+    case "PlaybackLimitsChanged":
+      player?.port.postMessage({
+        tag: "PlaybackLimitsChanged",
+        newLower: message.newLower,
+        newUpper: message.newUpper,
+      } satisfies PlaybackProcessorMessage);
+    break;
+
     default:
       throw new TypeError(`Unknown message from Elm: ${JSON.stringify(message)}`);
   }

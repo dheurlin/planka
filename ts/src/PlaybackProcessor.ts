@@ -7,6 +7,7 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
   private wasmPlaybackProcesor: WasmPlaybackProcessor | null = null;
   private playbackSpeed = 1;
   private isPlaying = false;
+  private playbackLimits: { lower: number, upper: number } = { lower: 0, upper: 0 };
 
   constructor() {
     super();
@@ -34,6 +35,10 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
           self.isPlaying = false;
           break;
 
+        case "PlaybackLimitsChanged":
+          self.playbackLimits = { upper: ev.data.newUpper, lower: ev.data.newLower };
+          break;
+
         default:
           assertExhausted(ev.data);
       }
@@ -47,7 +52,14 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
 
     const input = inputs[0]!;
     const output = outputs[0]!;
-    return this.wasmPlaybackProcesor.process(input, output, this.playbackSpeed, this.isPlaying);
+    return this.wasmPlaybackProcesor.process(
+      input,
+      output,
+      this.playbackSpeed,
+      this.isPlaying,
+      this.playbackLimits.lower,
+      this.playbackLimits.upper,
+    );
   }
 
   private reportCurrentProgressInSamples(samples: number) {
@@ -69,6 +81,10 @@ export type PlaybackProcessorMessage =
     tag: 'Play',
   } | {
     tag: 'Pause',
+  } | {
+    tag: 'PlaybackLimitsChanged',
+    newLower: number,
+    newUpper: number,
   };
 
 export type MessageFromPlaybackProcessor =
@@ -117,6 +133,8 @@ class WasmPlaybackProcessor extends WasmAudioProcessor {
     outputChannels: Array<Float32Array>,
     playbackSpeed: number,
     isPlaying: boolean,
+    lowerSampleLimit: number,
+    upperSampleLimit: number,
   ): boolean {
     const { inputChannelsWasmPtr, inputNumChannels, outputChannelsWasmPtr, outputNumChannels } = this.getAudioBuffers(inputChannels.length, outputChannels.length);
 
@@ -128,6 +146,8 @@ class WasmPlaybackProcessor extends WasmAudioProcessor {
       outputNumChannels,
       playbackSpeed,
       isPlaying,
+      lowerSampleLimit,
+      upperSampleLimit,
     );
 
     this.copyOutputsChannelsFromWasm(outputChannels);

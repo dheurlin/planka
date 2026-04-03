@@ -25,7 +25,7 @@ public:
     console::log("Sample rate: " + s(m_sample_rate));
   }
 
-  bool process(utils::span2d<float> output, float playback_speed, bool is_playing) {
+  bool process(utils::span2d<float> output, float playback_speed, bool is_playing, std::tuple<size_t, size_t> limits) {
     int progress_report_frequency_samples = m_sample_rate * PROGRESS_REPORT_FREQUENCY;
 
     if (is_playing && (m_src_index % progress_report_frequency_samples) < FRAME_SIZE) {
@@ -37,11 +37,14 @@ public:
       return true;
     }
 
-    if (m_src_index >= get_input_channel_length()) {
-      // TODO Loop?
+    // Loop when we hit limits
+    if (
+      m_src_index >= get_input_channel_length() ||
+      m_src_index < std::get<0>(limits) ||
+      m_src_index >= std::get<1>(limits)
+    ) {
+      m_src_index = std::get<0>(limits);
       report_current_progress_in_samples(m_src_index);
-      std::fill(output[0].begin(), output[output.count() - 1].end(), 0);
-      return true;
     }
 
     size_t curr_src_index = m_src_index;
@@ -82,11 +85,14 @@ bool PlaybackProcessor_process(
   float *output_channels,
   int output_num_channels,
   float playback_speed,
-  bool is_playing
+  bool is_playing,
+  int lower_playback_limit,
+  int upper_playback_limit
 ) {
   (void)input_channels;
   (void)input_num_channels;
 
   utils::span2d<float> output(output_channels, output_num_channels, FRAME_SIZE);
-  return self->process(output, playback_speed, is_playing);
+  std::tuple<size_t, size_t> playback_limits(lower_playback_limit, upper_playback_limit);
+  return self->process(output, playback_speed, is_playing, playback_limits);
 }
