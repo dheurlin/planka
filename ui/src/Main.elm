@@ -119,6 +119,7 @@ type Msg
 type PointerTarget
   = SoundWaveTarget
   | LimitTarget LimitMarker
+  | GutterTarget
 
 type MouseMsg
   = MouseMove MouseEvent
@@ -354,6 +355,11 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
     widthStr = String.fromFloat width
     heightStr = String.fromFloat height
     ( pointerX, pointerY ) = ( model.pointerPosition.pointerX, model.pointerPosition.pointerY )
+    pointerXSample = screenOffsetToSampleOffset model model.zoomLevel pointerX
+    gutterPointerClass =
+      if (abs (pointerXSample - model.sampleSelection.lower) < (abs (pointerXSample - model.sampleSelection.upper)))
+        then "lower"
+        else "upper"
     params : SoundWaveParams
     params =
       { dims = (width, height)
@@ -372,7 +378,15 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , preventDefaultOn "wheel" (D.map (alwaysPrevent << GotWheelEvent) wheelDecoder)
       , on "mousemove" <| D.map (GotMouseEvent << MouseMove) mouseEventDecoder
       ]
-      [ div [ id "sound-wave-canvas-wrapper" ]
+      [ div
+        [ class <| "gutter top " ++ gutterPointerClass
+        , Gestures.onPointerDown <| GotGestureEvent GutterTarget
+        ] [ ]
+      , div
+        [ class <| "gutter bottom " ++ gutterPointerClass
+        , Gestures.onPointerDown <| GotGestureEvent GutterTarget
+        ] [ ]
+      , div [ id "sound-wave-canvas-wrapper" ]
         [ C.toHtml ( round width, round height )
           [ class "sound-wave-canvas"
           , class (if zoomLevel > 1 then "scrollable" else "")

@@ -20,6 +20,7 @@ body {
 #sound-wave-container {
   --soundwave-height: 150px;
   --container-height: 200px;
+  --gutter-height: calc((var(--container-height) - var(--soundwave-height)) / 2);
 
   position: relative;
   border: 1px dashed olive;
@@ -36,7 +37,7 @@ body {
 
   .debug-stuff {
     position: absolute;
-    top: calc((var(--container-height) - var(--soundwave-height)) / 2);
+    top: var(--gutter-height);
     z-index: 1;
     color: white;
     font-size: 11px;
@@ -57,10 +58,25 @@ body {
     }
   }
 
-  .sound-line {
-    fill: none;
-    stroke: black;
-    stroke-width: 1;
+  .gutter {
+    position: absolute;
+    height: var(--gutter-height);
+    width: 100%;
+
+    &.top {
+      top: 0;
+    }
+    &.bottom {
+      bottom: 0;
+    }
+
+    &.lower {
+      cursor: e-resize;
+    }
+
+    &.upper {
+      cursor: w-resize;
+    }
   }
 
   .selection-foreground {
@@ -68,10 +84,11 @@ body {
     left: var(--x-position);
     width: var(--width);
     height: 100%;
+    pointer-events: none;
 
     .fill {
       position: absolute;
-      top: calc((var(--container-height) - var(--soundwave-height)) / 2);
+      top: var(--gutter-height);
       height: var(--soundwave-height);
       left: 0;
       right: 0;
@@ -85,15 +102,16 @@ body {
       width: 0px;
       border-left: 4px solid green;
       cursor: col-resize;
+      pointer-events: all;
 
       &.top {
         top: 0;
-        height: calc((var(--container-height) - var(--soundwave-height)) / 2);
+        height: var(--gutter-height);
       }
 
       &.bottom {
         bottom: 0;
-        height: calc((var(--container-height) - var(--soundwave-height)) / 2);
+        height: var(--gutter-height);
       }
 
       &:before, &:after {
