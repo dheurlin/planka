@@ -13,6 +13,7 @@ type MessageFromUI
   | PitchShiftFactorChanged Float
   | PauseRequested
   | PlayRequested
+  | PlaybackLimitsChanged { newLower: Int, newUpper: Int }
 
 encode: MessageFromUI -> E.Value
 encode msg = case msg of
@@ -36,3 +37,9 @@ encode msg = case msg of
 
   PlayRequested -> E.object
     [ ( "tag", E.string "PlayRequested" ) ]
+
+  PlaybackLimitsChanged { newLower, newUpper }-> E.object
+    [ ( "tag", E.string "PlaybackLimitsChanged" )
+    , ( "newLower", E.int newLower )
+    , ( "newUpper", E.int newUpper )
+    ]

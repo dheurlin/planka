@@ -551,7 +551,10 @@ updateOnMouse msg model =
                 , lower = startSample - movedSamples
                 }
               }
-            , Cmd.none
+            , FromUI.send <| FromUI.PlaybackLimitsChanged
+              { newUpper = model.sampleSelection.upper
+              , newLower = startSample - movedSamples
+              }
             )
           RightLimit { startSample }-> 
             ( { model
@@ -565,7 +568,10 @@ updateOnMouse msg model =
                 , upper = startSample - movedSamples
                 }
               }
-            , Cmd.none
+            , FromUI.send <| FromUI.PlaybackLimitsChanged
+              { newLower = model.sampleSelection.lower
+              , newUpper = startSample - movedSamples
+              }
             )
     (MouseDown { target, e }, _) ->
       ( { model
