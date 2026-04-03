@@ -544,7 +544,9 @@ updateSampleSelection model marker distanceMoved =
       LeftMarker -> ( oldLower - samplesMoved, oldUpper )
       RightMarker -> ( oldLower, oldUpper - samplesMoved )
   in
-    { newLower = newLower, newUpper = newUpper }
+    { newLower = clamp 0 (newUpper - 128) newLower
+    , newUpper = clamp (newLower + 128) (model.fileInfo.numSamples - 128) newUpper
+    }
 
 updateOnWheel : WheelEvent -> FileLoadedModel -> FileLoadedModel
 updateOnWheel e model = 
