@@ -408,11 +408,19 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
           model.sampleSelection.upper
           [ div [ class "fill" ] []
           , div
-            [ class "marker left"
+            [ class "marker top left"
             , Gestures.onPointerDown <| GotGestureEvent <| LimitTarget LeftMarker
             ] [ ]
           , div
-            [ class "marker right"
+            [ class "marker bottom left"
+            , Gestures.onPointerDown <| GotGestureEvent <| LimitTarget LeftMarker
+            ] [ ]
+          , div
+            [ class "marker top right"
+            , Gestures.onPointerDown <| GotGestureEvent <| LimitTarget RightMarker
+            ] [ ]
+          , div
+            [ class "marker bottom right"
             , Gestures.onPointerDown <| GotGestureEvent <| LimitTarget RightMarker
             ] [ ]
           ]

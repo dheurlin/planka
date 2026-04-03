@@ -67,7 +67,6 @@ body {
     position: absolute;
     left: var(--x-position);
     width: var(--width);
-    /* height: var(--soundwave-height); */
     height: 100%;
 
     .fill {
@@ -83,11 +82,19 @@ body {
 
     .marker {
       position: absolute;
-      top: 0;
-      bottom: 0;
       width: 0px;
       border-left: 4px solid green;
       cursor: col-resize;
+
+      &.top {
+        top: 0;
+        height: calc((var(--container-height) - var(--soundwave-height)) / 2);
+      }
+
+      &.bottom {
+        bottom: 0;
+        height: calc((var(--container-height) - var(--soundwave-height)) / 2);
+      }
 
       &:before, &:after {
         content: "";
