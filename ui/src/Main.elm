@@ -22,8 +22,10 @@ import Html.Attributes exposing
   , attribute
   )
 
-import Svg as S
-import Svg.Attributes as S
+import Canvas as C
+import Canvas.Settings as CS
+import Canvas.Settings.Line as CL
+import Color
 
 import Html.Events exposing (on, preventDefaultOn, onClick)
 import Json.Decode as D
@@ -361,40 +363,24 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , on "mousemove" <| D.map (GotMouseEvent << MouseMove) mouseEventDecoder
       ]
       [ div [ id "sound-wave-svg-wrapper" ]
-        [ S.svg
-          [ S.class "sound-wave-svg"
-          , S.class <| if zoomLevel > 1 then "scrollable" else ""
-          , S.width widthStr
-          , S.height heightStr
-          , S.viewBox <| "0 0 " ++ widthStr ++ " " ++ heightStr
-          ]
-          [ S.rect
-            [ S.class "svg-background"
-            , S.x "0"
-            , S.y "0"
-            , S.width widthStr
-            , S.height heightStr
+        [ C.toHtml ( round width, round height )
+          [  ]
+          [ C.shapes [ CS.fill Color.orange ] [ C.rect ( 0, 0 ) width height ]
+          , C.shapes [ CS.fill Color.blue ]
+            [ C.rect
+              ( absoluteSampleIndexToXCoord params (model.sampleSelection.lower)
+              , 0
+              )
+              ( absoluteSampleIntervalToXInterval params (model.sampleSelection.lower, model.sampleSelection.upper) )
+              height
             ]
-            [ ]
-          , S.rect
-            [ S.class "selection-background"
-            , S.height heightStr
-            , S.width
-                ( absoluteSampleIntervalToXInterval params (model.sampleSelection.lower, model.sampleSelection.upper)
-                |> String.fromFloat
-                ) 
-            , S.y "0"
-            , S.x
-                ( absoluteSampleIndexToXCoord params (model.sampleSelection.lower)
-                |> String.fromFloat
-                )
+          , C.shapes
+            [ CL.lineWidth 1
+            , CS.stroke Color.black
             ]
-            [ ]
-          , S.polyline 
-            [ S.points <| stringifyLinePoints linePoints
-            , S.class "sound-line"
+            [ C.path ( 0, 0 ) 
+               ( Array.toList linePoints |> List.map C.lineTo )
             ]
-            [  ]
           ]
         ]
       , divAtSamplePosition
@@ -439,9 +425,6 @@ divAtSamplePosition params className start end =
         , "px;"
         ]
       ]
-
-stringifyLinePoints : Array (Float, Float) -> String
-stringifyLinePoints = Array.foldl (\(x, y) acc -> acc ++ (String.fromFloat x) ++ "," ++ (String.fromFloat y) ++ " ") ""
 
 samplesToLinePoints : SoundWaveParams -> Array Float -> Array (Float, Float)
 samplesToLinePoints params arr = Array.indexedMap (sampleToLinePoint params (Array.length arr)) arr

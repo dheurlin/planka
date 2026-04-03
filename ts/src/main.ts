@@ -1,3 +1,4 @@
+import 'elm-canvas';
 import { Elm } from './Main.elm';
 
 import type { PlaybackProcessorMessage, MessageFromPlaybackProcessor } from './PlaybackProcessor';
