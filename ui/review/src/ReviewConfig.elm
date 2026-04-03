@@ -13,6 +13,7 @@ when inside the directory containing this file.
 
 import NoUnused.Exports
 import NoUnused.Variables
+import NoUnused.Dependencies
 import Review.Rule exposing (Rule)
 
 
@@ -20,4 +21,5 @@ config : List Rule
 config =
     [ NoUnused.Exports.rule
     , NoUnused.Variables.rule
+    , NoUnused.Dependencies.rule
     ]
