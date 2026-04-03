@@ -94,7 +94,6 @@ body {
       right: 0;
       width: 100%;
       background-color: rgba(0, 50, 255, 0.5);
-      cursor: grab;
     }
 
     .marker {
@@ -140,6 +139,25 @@ body {
 
       &.right {
         right: 0;
+      }
+    }
+
+    .mover {
+      position: absolute;
+      bottom: 0px;
+      left: 0px;
+      right: 0px;
+      &:after {
+        pointer-events: all;
+        cursor: grab;
+        content: "⇄";
+        background-color: #DDD;
+        border-radius: 101000px;
+        padding: 1px 10px;
+        position: absolute;
+        bottom: 0px;
+        left: 50%;
+        transform: translateX(-50%);
       }
     }
   }

@@ -429,6 +429,10 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
             [ class "marker bottom right"
             , Gestures.onPointerDown <| GotGestureEvent <| LimitTarget RightMarker
             ] [ ]
+          , div
+            [ class "mover"
+            -- , Gestures.onPointerDown <| GotGestureEvent <| LimitTarget RightMarker
+            ] [ ]
           ]
       , div
         [ class "debug-stuff" ]
