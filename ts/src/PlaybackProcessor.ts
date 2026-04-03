@@ -16,6 +16,11 @@ class PlaybackProcessor extends AudioWorkletProcessor implements AudioWorkletPro
     this.port.onmessage = async function (this, ev: MessageEvent<PlaybackProcessorMessage>) {
       switch (ev.data.tag) {
         case 'DataReady':
+          self.playbackLimits = {
+            lower: 0,
+            // We add a slight offset to the end to prevent weird arifacts when we hit the end
+            upper: new Float32Array(ev.data.channels[0]!).length - 128,
+          };
           self.wasmPlaybackProcesor = await WasmPlaybackProcessor.instantiate(
             WasmBinary,
             ev.data.channels,
