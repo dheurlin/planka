@@ -337,13 +337,6 @@ downSample sampleOffset zoomLevel targetLength arr =
   in
     Array.fromList values
 
-type alias SoundWaveParams =
-  { dims : (Float, Float)
-  , zoomLevel : Float
-  , sampleOffset : Int
-  , numSamples : Int
-  }
-
 soundWaveView : FileLoadedModel -> Html Msg
 soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
   let
@@ -355,20 +348,14 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
     widthStr = String.fromFloat width
     heightStr = String.fromFloat height
     ( pointerX, pointerY ) = ( model.pointerPosition.pointerX, model.pointerPosition.pointerY )
-    pointerXSample = screenOffsetToSampleOffset model model.zoomLevel pointerX
+    lowerLimitX = absoluteSampleIndexToXCoord model model.sampleSelection.lower
+    upperLimitX = absoluteSampleIndexToXCoord model model.sampleSelection.upper
     gutterPointerClass =
-      if (abs (pointerXSample - model.sampleSelection.lower) < (abs (pointerXSample - model.sampleSelection.upper)))
+      if (abs (pointerX - lowerLimitX) < (abs (pointerX - upperLimitX)))
         then "lower"
         else "upper"
-    params : SoundWaveParams
-    params =
-      { dims = (width, height)
-      , zoomLevel = zoomLevel
-      , sampleOffset = sampleOffset
-      , numSamples = Array.length fileInfo.channelData
-      }
     downSampled = downSample sampleOffset zoomLevel numSamplesToDisplay fileInfo.channelData
-    linePoints = samplesToLinePoints params downSampled
+    linePoints = samplesToLinePoints model downSampled
   in
     div
       [ id "sound-wave-container"
@@ -394,10 +381,10 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
           [ C.shapes [ CS.fill Color.orange ] [ C.rect ( 0, 0 ) width height ]
           , C.shapes [ CS.fill Color.blue ]
             [ C.rect
-              ( absoluteSampleIndexToXCoord params (model.sampleSelection.lower)
+              ( absoluteSampleIndexToXCoord model (model.sampleSelection.lower)
               , 0
               )
-              ( absoluteSampleIntervalToXInterval params (model.sampleSelection.lower, model.sampleSelection.upper) )
+              ( absoluteSampleIntervalToXInterval model (model.sampleSelection.lower, model.sampleSelection.upper) )
               height
             ]
           , C.shapes
@@ -410,13 +397,13 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
           ]
         ]
       , divAtSamplePosition
-          params
+          model
           "progress-indicator"
           playbackStatus.progressInSamples
           (playbackStatus.progressInSamples - 1)
           [ ]
       , divAtSamplePosition
-          params
+          model
           "selection-foreground"
           model.sampleSelection.lower
           model.sampleSelection.upper
@@ -448,11 +435,11 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
         ]
       ]
 
-divAtSamplePosition : SoundWaveParams -> String -> Int -> Int -> List (Html msg) -> Html msg
-divAtSamplePosition params className start end =
+divAtSamplePosition : FileLoadedModel -> String -> Int -> Int -> List (Html msg) -> Html msg
+divAtSamplePosition model className start end =
   let
-      startX = absoluteSampleIndexToXCoord params start 
-      endX = absoluteSampleIndexToXCoord params end 
+      startX = absoluteSampleIndexToXCoord model start 
+      endX = absoluteSampleIndexToXCoord model end 
   in
     div
       [ class className
@@ -466,24 +453,34 @@ divAtSamplePosition params className start end =
         ]
       ]
 
-samplesToLinePoints : SoundWaveParams -> Array Float -> Array (Float, Float)
+samplesToLinePoints : FileLoadedModel -> Array Float -> Array (Float, Float)
 samplesToLinePoints params arr = Array.indexedMap (sampleToLinePoint params (Array.length arr)) arr
 
-sampleToLinePoint : SoundWaveParams -> Int -> Int -> Float -> (Float, Float)
-sampleToLinePoint { dims } sampleLength index value =
-  ( toFloat index * (Tuple.first dims / toFloat sampleLength)
-  , (Tuple.second dims / 2) - value * Tuple.second dims
-  )
-
-absoluteSampleIndexToXCoord : SoundWaveParams -> Int -> Float
-absoluteSampleIndexToXCoord { numSamples, dims, zoomLevel, sampleOffset } sampleIndex =
-  (toFloat (sampleIndex - ceiling (toFloat sampleOffset)) / toFloat numSamples) * Tuple.first dims * zoomLevel
-
-absoluteSampleIntervalToXInterval : SoundWaveParams -> (Int, Int) -> Float
-absoluteSampleIntervalToXInterval params (start, end) =
+sampleToLinePoint : FileLoadedModel -> Int -> Int -> Float -> (Float, Float)
+sampleToLinePoint model sampleLength index value =
   let
-    startX = absoluteSampleIndexToXCoord params start
-    endX = absoluteSampleIndexToXCoord params end
+    width = model.soundwaveDimensions.width
+    height = model.soundwaveDimensions.height
+  in
+    ( toFloat index * (width / toFloat sampleLength)
+    , (height / 2) - value * height
+    )
+
+absoluteSampleIndexToXCoord : FileLoadedModel -> Int -> Float
+absoluteSampleIndexToXCoord model sampleIndex =
+  let
+    width = model.soundwaveDimensions.width
+    numSamples = model.fileInfo.numSamples
+    sampleOffset = model.sampleOffset
+    zoomLevel = model.zoomLevel
+  in
+    (toFloat (sampleIndex - ceiling (toFloat sampleOffset)) / toFloat numSamples) * width * zoomLevel
+
+absoluteSampleIntervalToXInterval : FileLoadedModel -> (Int, Int) -> Float
+absoluteSampleIntervalToXInterval model (start, end) =
+  let
+    startX = absoluteSampleIndexToXCoord model start
+    endX = absoluteSampleIndexToXCoord model end
   in endX - startX
 
 screenOffsetToSampleOffset : FileLoadedModel -> Float -> Float -> Int
@@ -537,7 +534,7 @@ updateOnGesture target e ({ gestureState, draggingAction } as model) =
 
     ( SoundWaveTarget, DraggingLimit marker, Gestures.PointingSingle p ) ->
       let
-        ({ newUpper, newLower } as newLimits) = updateSampleSelection model marker p.distanceMoved.x
+        ({ newUpper, newLower } as newLimits) = updateSampleSelectionRelative model marker p.distanceMoved.x
       in
         ( { model
           | draggingAction = DraggingLimit marker
@@ -555,16 +552,50 @@ updateOnGesture target e ({ gestureState, draggingAction } as model) =
       , Cmd.none
       )
 
+    ( GutterTarget, DraggingNone, Gestures.PointingSingle p ) ->
+      let
+        ( oldLower, oldUpper ) = (model.sampleSelection.lower, model.sampleSelection.upper)
+        clickedX = p.pointer.position.x
+        clickedSample = screenOffsetToSampleOffset model model.zoomLevel clickedX
+        oldLowerPos = absoluteSampleIndexToXCoord model oldLower
+        oldUpperPos = absoluteSampleIndexToXCoord model oldUpper
+        marker = if (abs (clickedX - oldLowerPos) < abs (clickedX - oldUpperPos))
+          then LeftMarker
+          else RightMarker
+
+        ({ newUpper, newLower } as newLimits) = updateSampleSelectionAbsolute model marker p.pointer.position.x
+      in
+        ( { model
+          | draggingAction = DraggingLimit marker
+          , sampleSelection = { lower = newLower , upper = newUpper }
+          , gestureState = newGestureState
+          }
+        , FromUI.send <| FromUI.PlaybackLimitsChanged newLimits
+        )
+
     ( _, _ , _) -> ( model, Cmd.none )
 
-updateSampleSelection : FileLoadedModel -> LimitMarker -> Float -> { newLower: Int, newUpper: Int }
-updateSampleSelection model marker distanceMoved =
+updateSampleSelectionRelative : FileLoadedModel -> LimitMarker -> Float -> { newLower: Int, newUpper: Int }
+updateSampleSelectionRelative model marker distanceMoved =
   let
     samplesMoved = screenOffsetToSampleOffset model model.zoomLevel distanceMoved
     ( oldLower, oldUpper ) = ( model.sampleSelection.lower, model.sampleSelection.upper )
     ( newLower, newUpper ) = case marker of
       LeftMarker -> ( oldLower - samplesMoved, oldUpper )
       RightMarker -> ( oldLower, oldUpper - samplesMoved )
+  in
+    { newLower = clamp 0 (newUpper - 128) newLower
+    , newUpper = clamp (newLower + 128) (model.fileInfo.numSamples - 128) newUpper
+    }
+
+updateSampleSelectionAbsolute : FileLoadedModel -> LimitMarker -> Float -> { newLower: Int, newUpper: Int }
+updateSampleSelectionAbsolute model marker pos =
+  let
+    samplePos = screenOffsetToSampleOffset model model.zoomLevel pos
+    ( oldLower, oldUpper ) = ( model.sampleSelection.lower, model.sampleSelection.upper )
+    ( newLower, newUpper ) = case marker of
+      LeftMarker -> ( samplePos + model.sampleOffset, oldUpper )
+      RightMarker -> ( oldLower, samplePos + model.sampleOffset )
   in
     { newLower = clamp 0 (newUpper - 128) newLower
     , newUpper = clamp (newLower + 128) (model.fileInfo.numSamples - 128) newUpper
