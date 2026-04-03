@@ -70,9 +70,12 @@ type alias FileLoadedModel =
   }
 
 type DraggingAction
-   = DraggingLeftLimit
-   | DraggingRightLimit
+   = DraggingLimit LimitMarker
    | DraggingNone
+
+type LimitMarker
+  = LeftMarker
+  | RightMarker
 
 initialFileLoadedModel : FileInfo -> FileLoadedModel
 initialFileLoadedModel i =
@@ -115,8 +118,7 @@ type Msg
 
 type PointerTarget
   = SoundWaveTarget
-  | LeftLimitTarget
-  | RightLimitTarget
+  | LimitTarget LimitMarker
 
 type MouseMsg
   = MouseMove MouseEvent
@@ -407,11 +409,11 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
           [ div [ class "fill" ] []
           , div
             [ class "marker left"
-            , Gestures.onPointerDown <| GotGestureEvent LeftLimitTarget
+            , Gestures.onPointerDown <| GotGestureEvent <| LimitTarget LeftMarker
             ] [ ]
           , div
             [ class "marker right"
-            , Gestures.onPointerDown <| GotGestureEvent RightLimitTarget
+            , Gestures.onPointerDown <| GotGestureEvent <| LimitTarget RightMarker
             ] [ ]
           ]
       , div
@@ -511,59 +513,38 @@ updateOnGesture target e ({ gestureState, draggingAction } as model) =
         , Cmd.none
         )
 
-    ( SoundWaveTarget, DraggingLeftLimit, Gestures.PointingSingle p ) ->
+    ( SoundWaveTarget, DraggingLimit marker, Gestures.PointingSingle p ) ->
       let
-        samplesMoved = screenOffsetToSampleOffset model model.zoomLevel p.distanceMoved.x
+        ({ newUpper, newLower } as newLimits) = updateSampleSelection model marker p.distanceMoved.x
       in
         ( { model
-          | draggingAction = DraggingLeftLimit
-          , sampleSelection =
-            { lower = model.sampleSelection.lower - samplesMoved
-            , upper = model.sampleSelection.upper
-            }
+          | draggingAction = DraggingLimit marker
+          , sampleSelection = { lower = newLower , upper = newUpper }
           , gestureState = newGestureState
           }
-        , FromUI.send <| FromUI.PlaybackLimitsChanged
-          { newLower = model.sampleSelection.lower - samplesMoved
-          , newUpper = model.sampleSelection.upper
-          }
+        , FromUI.send <| FromUI.PlaybackLimitsChanged newLimits
         )
 
-    ( SoundWaveTarget, DraggingRightLimit, Gestures.PointingSingle p ) ->
-      let
-        samplesMoved = screenOffsetToSampleOffset model model.zoomLevel p.distanceMoved.x
-      in
-        ( { model
-          | draggingAction = DraggingRightLimit
-          , sampleSelection =
-            { lower = model.sampleSelection.lower
-            , upper = model.sampleSelection.upper - samplesMoved
-            }
-          , gestureState = newGestureState
-          }
-        , FromUI.send <| FromUI.PlaybackLimitsChanged
-          { newLower = model.sampleSelection.lower
-          , newUpper = model.sampleSelection.upper - samplesMoved
-          }
-        )
-
-    ( LeftLimitTarget, DraggingNone, _ ) ->
+    ( LimitTarget marker, DraggingNone, _ ) ->
       ( { model
-        | draggingAction = Debug.log "Dragging left" DraggingLeftLimit
-        , gestureState = newGestureState
-        }
-      , Cmd.none
-      )
-
-    ( RightLimitTarget, DraggingNone, _ ) ->
-      ( { model
-        | draggingAction = DraggingRightLimit
+        | draggingAction = DraggingLimit marker
         , gestureState = newGestureState
         }
       , Cmd.none
       )
 
     ( _, _ , _) -> ( model, Cmd.none )
+
+updateSampleSelection : FileLoadedModel -> LimitMarker -> Float -> { newLower: Int, newUpper: Int }
+updateSampleSelection model marker distanceMoved =
+  let
+    samplesMoved = screenOffsetToSampleOffset model model.zoomLevel distanceMoved
+    ( oldLower, oldUpper ) = ( model.sampleSelection.lower, model.sampleSelection.upper )
+    ( newLower, newUpper ) = case marker of
+      LeftMarker -> ( oldLower - samplesMoved, oldUpper )
+      RightMarker -> ( oldLower, oldUpper - samplesMoved )
+  in
+    { newLower = newLower, newUpper = newUpper }
 
 updateOnWheel : WheelEvent -> FileLoadedModel -> FileLoadedModel
 updateOnWheel e model = 
