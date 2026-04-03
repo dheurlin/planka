@@ -70,6 +70,7 @@ type alias FileLoadedModel =
 
 type MouseState
   = JustMovingMouse { pointerX: Float, pointerY: Float }
+  | Dragging { target: MouseTarget, startPointX: Float, currentX: Float }
 
 initialFileLoadedModel : FileInfo -> FileLoadedModel
 initialFileLoadedModel i =
@@ -109,8 +110,16 @@ type Msg
   | OccuredError String
   | Irrelevant
 
+-- TODO Unify GestureEvent and MouseEvent
+
 type MouseMsg
   = MouseMove MouseEvent
+  | MouseDown { target: MouseTarget, e: MouseEvent }
+  | MouseUp MouseEvent
+
+type MouseTarget
+  = LeftLimit { startSample: Int }
+  | RightLimit { startSample: Int }
 
 initWith : (subModel -> Model) -> (subMsg -> Msg) -> (flags -> ( subModel, subMsg )) -> flags -> ( Model, Cmd Msg )
 initWith toModel toMsg initFn flags =
@@ -344,6 +353,7 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
     heightStr = String.fromFloat height
     ( pointerX, pointerY ) = case model.mouseState of
       JustMovingMouse m -> ( m.pointerX, m.pointerY )
+      _                 -> (0, 0)
     params : SoundWaveParams
     params =
       { dims = (width, height)
@@ -361,6 +371,7 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , Gestures.onPointerMove GotGestureEvent
       , preventDefaultOn "wheel" (D.map (alwaysPrevent << GotWheelEvent) wheelDecoder)
       , on "mousemove" <| D.map (GotMouseEvent << MouseMove) mouseEventDecoder
+      , on "mouseup" <| D.map (GotMouseEvent << MouseUp) mouseEventDecoder
       ]
       [ div [ id "sound-wave-svg-wrapper" ]
         [ C.toHtml ( round width, round height )
@@ -395,8 +406,14 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
           model.sampleSelection.lower
           model.sampleSelection.upper
           [ div [ class "fill" ] []
-          , div [ class "marker left" ] [ ]
-          , div [ class "marker right" ] [ ]
+          , div
+            [ class "marker left"
+            , on "mousedown" <| D.map (mkMarkerDown model.sampleSelection.lower LeftLimit) mouseEventDecoder
+            ] [ ]
+          , div
+            [ class "marker right"
+            , on "mousedown" <| D.map (mkMarkerDown model.sampleSelection.upper RightLimit) mouseEventDecoder
+            ] [ ]
           ]
       , div
         [ class "debug-stuff" ]
@@ -407,6 +424,9 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
         , text <| "Pointer: (" ++ String.fromFloat pointerX ++ ", " ++ String.fromFloat pointerY ++ ")"
         ]
       ]
+
+mkMarkerDown : Int -> ({ startSample: Int } -> MouseTarget) -> MouseEvent -> Msg
+mkMarkerDown startSample target ev = GotMouseEvent (MouseDown { target = target { startSample = startSample }, e = ev })
 
 divAtSamplePosition : SoundWaveParams -> String -> Int -> Int -> List (Html msg) -> Html msg
 divAtSamplePosition params className start end =
@@ -466,28 +486,31 @@ calculateNewDisplayParams model centerPoint deltaX deltaY =
     }
 
 updateOnGesture : Gestures.PointerMsg -> FileLoadedModel -> FileLoadedModel
-updateOnGesture e ({ gestureState } as model) =
-  let
-    width = model.soundwaveDimensions.width
-    newGestureState = Gestures.updateState e gestureState
-    (deltaX, deltaY, centerPoint) = case newGestureState of
-      Gestures.None -> (0, 0, 0.5)
-      Gestures.PointingSingle p -> (p.distanceMoved.x, 0, 0.5)
-      Gestures.PointingDouble p -> (p.distanceMoved.x, p.distanceZoomed, p.pointerMidPoint.x / width)
+updateOnGesture e ({ gestureState } as model) = case model.mouseState of
+  JustMovingMouse _ -> 
+    let
+      width = model.soundwaveDimensions.width
+      newGestureState = Gestures.updateState e gestureState
+      (deltaX, deltaY, centerPoint) = case newGestureState of
+        Gestures.None -> (0, 0, 0.5)
+        Gestures.PointingSingle p -> (p.distanceMoved.x, 0, 0.5)
+        Gestures.PointingDouble p -> (p.distanceMoved.x, p.distanceZoomed, p.pointerMidPoint.x / width)
 
-    { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model centerPoint deltaX deltaY
-  in
-    { model
-    | zoomLevel = newZoomLevel
-    , sampleOffset = newSampleOffset
-    , gestureState = newGestureState
-    }
+      { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model centerPoint deltaX deltaY
+    in
+      { model
+      | zoomLevel = newZoomLevel
+      , sampleOffset = newSampleOffset
+      , gestureState = newGestureState
+      }
+  _ -> model
 
 updateOnWheel : WheelEvent -> FileLoadedModel -> FileLoadedModel
 updateOnWheel e model = 
   let
     centerPoint = case model.mouseState of
       JustMovingMouse { pointerX } -> pointerX / model.soundwaveDimensions.width
+      _ -> 0.5
     { newZoomLevel, newSampleOffset } = calculateNewDisplayParams model centerPoint e.deltaX e.deltaY
   in
     { model
@@ -496,10 +519,10 @@ updateOnWheel e model =
     }
 
 updateOnMouse : MouseMsg -> FileLoadedModel -> ( FileLoadedModel, Cmd Msg )
-updateOnMouse e model =
+updateOnMouse msg model =
   let
     elemXOffset = model.soundwaveDimensions.xOffset
-  in case (e, model.mouseState) of
+  in case (msg, model.mouseState) of
     (MouseMove m, JustMovingMouse _) ->
       ( { model
         | mouseState = JustMovingMouse
@@ -508,6 +531,61 @@ updateOnMouse e model =
         }
       , Cmd.none
       )
+    (MouseMove m, Dragging d) ->
+      let
+          moved = d.startPointX - m.pageX
+          movedSamples = screenOffsetToSampleOffset model model.zoomLevel moved
+      in
+        case d.target of
+          LeftLimit { startSample }-> 
+            ( { model
+              | mouseState = Dragging
+                { target = LeftLimit { startSample = startSample }
+                , startPointX = d.startPointX
+                , currentX = m.pageX - elemXOffset
+                }
+              , sampleSelection =
+                { upper = model.sampleSelection.upper
+                , lower = startSample - movedSamples
+                }
+              }
+            , Cmd.none
+            )
+          RightLimit { startSample }-> 
+            ( { model
+              | mouseState = Dragging
+                { target = RightLimit { startSample = startSample }
+                , startPointX = d.startPointX
+                , currentX = m.pageX - elemXOffset
+                }
+              , sampleSelection =
+                { lower = model.sampleSelection.lower
+                , upper = startSample - movedSamples
+                }
+              }
+            , Cmd.none
+            )
+    (MouseDown { target, e }, _) ->
+      ( { model
+        | mouseState = Dragging
+          { target = target
+          , startPointX = e.pageX - elemXOffset
+          , currentX = e.pageX - elemXOffset
+          }
+        }
+      , Cmd.none
+      )
+
+    (MouseUp e, _ ) ->
+      ( { model
+        | mouseState = JustMovingMouse
+          { pointerX = e.pageX - elemXOffset
+          , pointerY = e.offsetY }
+        , gestureState = Gestures.None
+        }
+      , Cmd.none
+      )
+    -- (_, _) -> ( model, Cmd.none )
 
 playbackControlsView : FileLoadedModel -> Html Msg
 playbackControlsView { playbackStatus } =
