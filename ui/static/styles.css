@@ -28,7 +28,7 @@ body {
   display: flex;
   align-items: center;
 
-  #sound-wave-svg-wrapper {
+  #sound-wave-canvas-wrapper {
     position: absolute;
     height: var(--soundwave-height);
     width: 100%
@@ -44,7 +44,7 @@ body {
     font-family: monospace;
   }
 
-  .sound-wave-svg {
+  .sound-wave-canvas {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -61,14 +61,6 @@ body {
     fill: none;
     stroke: black;
     stroke-width: 1;
-  }
-
-  .svg-background {
-    fill: orange;
-  }
-
-  .selection-background {
-    fill: blue;
   }
 
   .selection-foreground {

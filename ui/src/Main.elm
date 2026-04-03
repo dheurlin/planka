@@ -134,7 +134,7 @@ init flags = initWith FileSelectModel GotFileSelectMsg FileSelect.init flags
 initLoaded : FileLoadedModel -> ( Model, Cmd Msg )
 initLoaded m =
   ( FileLoaded m
-  , ResizeObserver.observeElement "sound-wave-svg-wrapper"
+  , ResizeObserver.observeElement "sound-wave-canvas-wrapper"
   )
 
 update: Msg -> Model -> (Model, Cmd Msg)
@@ -196,7 +196,7 @@ update msg model =
       )
 
     ( GotResizeEvent ev, FileLoaded data ) -> case ev.elementId of
-      "sound-wave-svg-wrapper" ->
+      "sound-wave-canvas-wrapper" ->
         ( FileLoaded
           { data
           | soundwaveDimensions = { width = ev.newWidth, height = ev.newHeight, xOffset = ev.newXOffset }
@@ -373,9 +373,11 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , on "mousemove" <| D.map (GotMouseEvent << MouseMove) mouseEventDecoder
       , on "mouseup" <| D.map (GotMouseEvent << MouseUp) mouseEventDecoder
       ]
-      [ div [ id "sound-wave-svg-wrapper" ]
+      [ div [ id "sound-wave-canvas-wrapper" ]
         [ C.toHtml ( round width, round height )
-          [  ]
+          [ class "sound-wave-canvas"
+          , class (if zoomLevel > 1 then "scrollable" else "")
+          ]
           [ C.shapes [ CS.fill Color.orange ] [ C.rect ( 0, 0 ) width height ]
           , C.shapes [ CS.fill Color.blue ]
             [ C.rect
