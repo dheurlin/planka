@@ -306,7 +306,7 @@ sliderView params = input
   , attribute "max" (String.fromFloat params.maxValue)
   , value (String.fromFloat params.currentValue)
   , attribute "step" (String.fromFloat params.step)
-  , on "change" (D.map params.makeMsg targetValueFloatDecoder)
+  , on "input" (D.map params.makeMsg targetValueFloatDecoder)
   ]
   [ ]
 
