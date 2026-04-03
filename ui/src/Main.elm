@@ -112,6 +112,7 @@ type Msg
   | GotResizeEvent { elementId: String, newWidth: Float, newHeight: Float, newXOffset: Float }
   | GotGestureEvent PointerTarget Gestures.PointerMsg
   | GotWheelEvent WheelEvent
+  | GotPointerLeave
   | GotMouseEvent MouseMsg
   | OccuredError String
   | Irrelevant
@@ -210,6 +211,9 @@ update msg model =
       _ -> ( model, Cmd.none )
 
     ( GotGestureEvent t e, FileLoaded data ) -> updateOnGesture t e data |> updateWith FileLoaded identity model
+
+    ( GotPointerLeave, FileLoaded data ) ->
+      ( FileLoaded { data | gestureState = Gestures.None }, Cmd.none )
 
     ( GotWheelEvent e, FileLoaded data ) -> ( FileLoaded <| updateOnWheel e data, Cmd.none )
 
@@ -364,6 +368,7 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , Gestures.onPointerMove <| GotGestureEvent SoundWaveTarget
       , preventDefaultOn "wheel" (D.map (alwaysPrevent << GotWheelEvent) wheelDecoder)
       , on "mousemove" <| D.map (GotMouseEvent << MouseMove) mouseEventDecoder
+      , on "pointerleave" <| D.map (always GotPointerLeave) (D.succeed "ok")
       ]
       [ div
         [ class <| "gutter top " ++ gutterPointerClass
