@@ -22,6 +22,10 @@ import Html.Attributes exposing
   , attribute
   )
 
+import Process
+
+import Task
+
 import Canvas as C
 import Canvas.Settings as CS
 import Canvas.Settings.Line as CL
@@ -71,12 +75,16 @@ type alias FileLoadedModel =
 
 type DraggingAction
   = DraggingLimit LimitMarker
-  | DraggingMover
+  | DraggingMover MoverMovement
   | DraggingNone
 
 type LimitMarker
   = LeftMarker
   | RightMarker
+
+type MoverMovement
+  = NormalMover
+  | StepwiseMover
 
 initialFileLoadedModel : FileInfo -> FileLoadedModel
 initialFileLoadedModel i =
@@ -115,6 +123,7 @@ type Msg
   | GotWheelEvent WheelEvent
   | GotPointerLeave
   | GotMouseEvent MouseMsg
+  | GotMoverTimer
   | OccuredError String
   | Irrelevant
 
@@ -220,6 +229,17 @@ update msg model =
     ( GotWheelEvent e, FileLoaded data ) -> ( FileLoaded <| updateOnWheel e data, Cmd.none )
 
     ( GotMouseEvent e, FileLoaded data ) -> updateOnMouse e data |> updateWith FileLoaded identity model
+
+    ( GotMoverTimer, FileLoaded data ) -> case data.gestureState of
+      Gestures.PointingSingle p ->
+        if (abs <| p.pointer.startPosition.x - p.pointer.position.x) < 10
+          then
+            ( FileLoaded { data | draggingAction = DraggingMover StepwiseMover }
+            , Cmd.none
+            )
+          else ( model, Cmd.none )
+
+      _ -> ( model, Cmd.none )
 
     ( OccuredError e, _) -> ( Debug.log e model, Cmd.none ) -- TODO Better error handling?
 
@@ -360,6 +380,10 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       if (abs (pointerX - lowerLimitX) < (abs (pointerX - upperLimitX)))
         then "lower"
         else "upper"
+    draggingMoverClass = case model.draggingAction of
+      DraggingMover NormalMover -> "dragging-mover"
+      DraggingMover StepwiseMover -> "dragging-mover stepwise"
+      _               -> ""
     downSampled = downSample sampleOffset zoomLevel numSamplesToDisplay fileInfo.channelData
     linePoints = samplesToLinePoints model downSampled
   in
@@ -371,7 +395,7 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , preventDefaultOn "wheel" (D.map (alwaysPrevent << GotWheelEvent) wheelDecoder)
       , on "mousemove" <| D.map (GotMouseEvent << MouseMove) mouseEventDecoder
       , on "pointerleave" <| D.map (always GotPointerLeave) (D.succeed "ok")
-      , class (if model.draggingAction == DraggingMover then "dragging-mover" else "")
+      , class draggingMoverClass
       ]
       [ div
         [ class <| "gutter top " ++ gutterPointerClass
@@ -387,7 +411,12 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
           , class (if zoomLevel > 1 then "scrollable" else "")
           ]
           [ C.shapes [ CS.fill Color.orange ] [ C.rect ( 0, 0 ) width height ]
-          , C.shapes [ CS.fill Color.blue ]
+          , C.shapes
+            [ CS.fill <|
+              if model.draggingAction == DraggingMover StepwiseMover
+                then Color.green
+                else Color.blue
+            ]
             [ C.rect
               ( absoluteSampleIndexToXCoord model (model.sampleSelection.lower)
               , 0
@@ -566,15 +595,16 @@ updateOnGesture target e ({ gestureState, draggingAction } as model) =
 
     ( MoverTarget, DraggingNone, _ ) ->
       ( { model
-        | draggingAction = DraggingMover
+        | draggingAction = DraggingMover NormalMover
         , gestureState = newGestureState
       }
-      , Cmd.none
+      , Process.sleep 500 |> Task.perform (always GotMoverTimer)
       )
 
-    ( _, DraggingMover, Gestures.PointingSingle p ) ->
+    ( _, DraggingMover type_, Gestures.PointingSingle p ) ->
       let
-        ({ newUpper, newLower } as newLimits) = updateSampleSelectionBoth model  p.distanceMoved.x
+        ({ newUpper, newLower } as newLimits) =
+          updateSampleSelectionBoth model type_ p.pointer.position.x p.distanceMoved.x
       in
         ( { model
           | sampleSelection = { lower = newLower , upper = newUpper }
@@ -619,14 +649,24 @@ updateSampleSelectionRelative model marker distanceMoved =
     , newUpper = clamp (newLower + 128) (model.fileInfo.numSamples - 128) newUpper
     }
 
-updateSampleSelectionBoth : FileLoadedModel -> Float -> { newLower: Int, newUpper: Int }
-updateSampleSelectionBoth model distanceMoved =
+updateSampleSelectionBoth : FileLoadedModel -> MoverMovement -> Float -> Float -> { newLower: Int, newUpper: Int }
+updateSampleSelectionBoth model movementType cursorPosition distanceMoved =
   let
     samplesMoved = screenOffsetToSampleOffset model model.zoomLevel distanceMoved
+    cursorPositionInSamples = screenOffsetToSampleOffset model model.zoomLevel cursorPosition
     ( oldLower, oldUpper ) = ( model.sampleSelection.lower, model.sampleSelection.upper )
     distance = oldUpper - oldLower
-    newLowerMin = max 0 <| oldLower - samplesMoved
-    newUpperMax = min (model.fileInfo.numSamples - 128) <| oldUpper - samplesMoved
+    samplesToMove = case movementType of
+      NormalMover -> samplesMoved
+      StepwiseMover ->
+        if cursorPositionInSamples > oldUpper - model.sampleOffset
+          then -distance
+        else if cursorPositionInSamples < oldLower - model.sampleOffset
+          then distance
+        else 0
+
+    newLowerMin = max 0 <| oldLower - samplesToMove
+    newUpperMax = min (model.fileInfo.numSamples - 128) <| oldUpper - samplesToMove
   in
     if samplesMoved > 0
       then { newLower = newLowerMin, newUpper = newLowerMin + distance }
