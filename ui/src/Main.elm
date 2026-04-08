@@ -617,7 +617,6 @@ updateOnGesture target e ({ gestureState, draggingAction } as model) =
       let
         ( oldLower, oldUpper ) = (model.sampleSelection.lower, model.sampleSelection.upper)
         clickedX = p.pointer.position.x
-        clickedSample = screenOffsetToSampleOffset model model.zoomLevel clickedX
         oldLowerPos = absoluteSampleIndexToXCoord model oldLower
         oldUpperPos = absoluteSampleIndexToXCoord model oldUpper
         marker = if (abs (clickedX - oldLowerPos) < abs (clickedX - oldUpperPos))
