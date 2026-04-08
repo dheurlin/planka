@@ -526,7 +526,11 @@ absoluteSampleIntervalToXInterval model (start, end) =
 
 screenOffsetToSampleOffset : FileLoadedModel -> Float -> Float -> Int
 screenOffsetToSampleOffset model zoomLevel screenOffset =
-  round <| ( toFloat model.fileInfo.numSamples  / (model.soundwaveDimensions.width * zoomLevel)  * screenOffset)
+  round <| (toFloat model.fileInfo.numSamples  / (model.soundwaveDimensions.width * zoomLevel)  * screenOffset)
+
+screenPositionToSample : FileLoadedModel -> Float -> Float -> Int
+screenPositionToSample model zoomLevel screenPosition =
+  screenOffsetToSampleOffset model zoomLevel screenPosition + model.sampleOffset
 
 calculateNewDisplayParams : FileLoadedModel -> Float -> Float -> Float -> { newZoomLevel: Float, newSampleOffset: Int }
 calculateNewDisplayParams model centerPoint deltaX deltaY =
@@ -652,15 +656,15 @@ updateSampleSelectionBoth : FileLoadedModel -> MoverMovement -> Float -> Float -
 updateSampleSelectionBoth model movementType cursorPosition distanceMoved =
   let
     samplesMoved = screenOffsetToSampleOffset model model.zoomLevel distanceMoved
-    cursorPositionInSamples = screenOffsetToSampleOffset model model.zoomLevel cursorPosition
+    cursorPositionInSamples = screenPositionToSample model model.zoomLevel cursorPosition
     ( oldLower, oldUpper ) = ( model.sampleSelection.lower, model.sampleSelection.upper )
     distance = oldUpper - oldLower
     samplesToMove = case movementType of
       NormalMover -> samplesMoved
       StepwiseMover ->
-        if cursorPositionInSamples > oldUpper - model.sampleOffset
+        if cursorPositionInSamples > oldUpper
           then -distance
-        else if cursorPositionInSamples < oldLower - model.sampleOffset
+        else if cursorPositionInSamples < oldLower
           then distance
         else 0
 
@@ -674,11 +678,11 @@ updateSampleSelectionBoth model movementType cursorPosition distanceMoved =
 updateSampleSelectionAbsolute : FileLoadedModel -> LimitMarker -> Float -> { newLower: Int, newUpper: Int }
 updateSampleSelectionAbsolute model marker pos =
   let
-    samplePos = screenOffsetToSampleOffset model model.zoomLevel pos
+    samplePos = screenPositionToSample model model.zoomLevel pos
     ( oldLower, oldUpper ) = ( model.sampleSelection.lower, model.sampleSelection.upper )
     ( newLower, newUpper ) = case marker of
-      LeftMarker -> ( samplePos + model.sampleOffset, oldUpper )
-      RightMarker -> ( oldLower, samplePos + model.sampleOffset )
+      LeftMarker -> ( samplePos, oldUpper )
+      RightMarker -> ( oldLower, samplePos )
   in
     { newLower = clamp 0 (newUpper - 128) newLower
     , newUpper = clamp (newLower + 128) (model.fileInfo.numSamples - 128) newUpper
