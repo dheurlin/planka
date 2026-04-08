@@ -371,6 +371,7 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
       , preventDefaultOn "wheel" (D.map (alwaysPrevent << GotWheelEvent) wheelDecoder)
       , on "mousemove" <| D.map (GotMouseEvent << MouseMove) mouseEventDecoder
       , on "pointerleave" <| D.map (always GotPointerLeave) (D.succeed "ok")
+      , class (if model.draggingAction == DraggingMover then "dragging-mover" else "")
       ]
       [ div
         [ class <| "gutter top " ++ gutterPointerClass

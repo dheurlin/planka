@@ -147,9 +147,10 @@ body {
       bottom: 0px;
       left: 0px;
       right: 0px;
+      cursor: grab;
+
       &:after {
         pointer-events: all;
-        cursor: grab;
         content: "⇄";
         background-color: #DDD;
         border-radius: 101000px;
@@ -158,6 +159,10 @@ body {
         bottom: 0px;
         left: 50%;
         transform: translateX(-50%);
+      }
+
+      .dragging-mover & {
+        cursor: dragging;
       }
     }
   }
@@ -174,3 +179,8 @@ body {
     background-color: red;
   }
 }
+
+#sound-wave-container.dragging-mover, #sound-wave-container.dragging-mover * {
+  cursor: grabbing!important;
+}
+
