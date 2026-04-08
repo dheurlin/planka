@@ -70,8 +70,9 @@ type alias FileLoadedModel =
   }
 
 type DraggingAction
-   = DraggingLimit LimitMarker
-   | DraggingNone
+  = DraggingLimit LimitMarker
+  | DraggingMover
+  | DraggingNone
 
 type LimitMarker
   = LeftMarker
@@ -120,6 +121,7 @@ type Msg
 type PointerTarget
   = SoundWaveTarget
   | LimitTarget LimitMarker
+  | MoverTarget
   | GutterTarget
 
 type MouseMsg
@@ -431,7 +433,7 @@ soundWaveView ({ fileInfo, soundwaveDimensions, playbackStatus } as model) =
             ] [ ]
           , div
             [ class "mover"
-            -- , Gestures.onPointerDown <| GotGestureEvent <| LimitTarget RightMarker
+            , Gestures.onPointerDown <| GotGestureEvent <| MoverTarget
             ] [ ]
           ]
       , div
@@ -561,6 +563,25 @@ updateOnGesture target e ({ gestureState, draggingAction } as model) =
       , Cmd.none
       )
 
+    ( MoverTarget, DraggingNone, _ ) ->
+      ( { model
+        | draggingAction = DraggingMover
+        , gestureState = newGestureState
+      }
+      , Cmd.none
+      )
+
+    ( _, DraggingMover, Gestures.PointingSingle p ) ->
+      let
+        ({ newUpper, newLower } as newLimits) = updateSampleSelectionBoth model  p.distanceMoved.x
+      in
+        ( { model
+          | sampleSelection = { lower = newLower , upper = newUpper }
+          , gestureState = newGestureState
+          }
+        , FromUI.send <| FromUI.PlaybackLimitsChanged newLimits
+        )
+
     ( GutterTarget, DraggingNone, Gestures.PointingSingle p ) ->
       let
         ( oldLower, oldUpper ) = (model.sampleSelection.lower, model.sampleSelection.upper)
@@ -596,6 +617,19 @@ updateSampleSelectionRelative model marker distanceMoved =
     { newLower = clamp 0 (newUpper - 128) newLower
     , newUpper = clamp (newLower + 128) (model.fileInfo.numSamples - 128) newUpper
     }
+
+updateSampleSelectionBoth : FileLoadedModel -> Float -> { newLower: Int, newUpper: Int }
+updateSampleSelectionBoth model distanceMoved =
+  let
+    samplesMoved = screenOffsetToSampleOffset model model.zoomLevel distanceMoved
+    ( oldLower, oldUpper ) = Debug.log "Old" ( model.sampleSelection.lower, model.sampleSelection.upper )
+    distance = oldUpper - oldLower
+    newLowerMin = max 0 <| oldLower - samplesMoved
+    newUpperMax = min (model.fileInfo.numSamples - 128) <| oldUpper - samplesMoved
+  in
+    Debug.log "Chosen:" <| if samplesMoved > 0
+      then { newLower = newLowerMin, newUpper = newLowerMin + distance }
+      else { newLower = newUpperMax - distance, newUpper = newUpperMax }
 
 updateSampleSelectionAbsolute : FileLoadedModel -> LimitMarker -> Float -> { newLower: Int, newUpper: Int }
 updateSampleSelectionAbsolute model marker pos =
