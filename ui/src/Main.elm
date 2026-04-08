@@ -623,12 +623,12 @@ updateSampleSelectionBoth : FileLoadedModel -> Float -> { newLower: Int, newUppe
 updateSampleSelectionBoth model distanceMoved =
   let
     samplesMoved = screenOffsetToSampleOffset model model.zoomLevel distanceMoved
-    ( oldLower, oldUpper ) = Debug.log "Old" ( model.sampleSelection.lower, model.sampleSelection.upper )
+    ( oldLower, oldUpper ) = ( model.sampleSelection.lower, model.sampleSelection.upper )
     distance = oldUpper - oldLower
     newLowerMin = max 0 <| oldLower - samplesMoved
     newUpperMax = min (model.fileInfo.numSamples - 128) <| oldUpper - samplesMoved
   in
-    Debug.log "Chosen:" <| if samplesMoved > 0
+    if samplesMoved > 0
       then { newLower = newLowerMin, newUpper = newLowerMin + distance }
       else { newLower = newUpperMax - distance, newUpper = newUpperMax }
 
