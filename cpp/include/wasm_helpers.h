@@ -2,7 +2,12 @@
 
 #include <string>
 
-#define WASM_EXPORT(name) extern "C" __attribute__((export_name(#name)))
+#define WASM_EXPORT(name) \
+  _Pragma("GCC diagnostic push") \
+  _Pragma("GCC diagnostic ignored \"-Wunknown-attributes\"") \
+  extern "C" __attribute__((export_name(#name))) \
+  _Pragma("GCC diagnostic pop")
+
 #define WASM_IMPORT extern "C" // TODO Does it have to be done like this?
 
 WASM_IMPORT void _console_log(const char *str);
