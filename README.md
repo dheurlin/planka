@@ -21,6 +21,12 @@ make
 
 > Note that you will need to install [wasi-sdk][wasi-sdk] to build like this
 
+Or run the following command to build with a Docker image:
+
+```
+./build_docker.sh
+```
+
 Next, ensure the Elm compiler is installed. Use your search engine of choice for instructions on how to do this on your OS/distro
 
 Now we can build the UI:
