@@ -19,7 +19,7 @@ cd cpp
 make
 ```
 
-> Note that you will need to install the necessary WASI components (runtime, std-libs for C & C++, ...) and possibly modify the `Makefile` according to where your distribution places those files.
+> Note that you will need to install [wasi-sdk][wasi-sdk] to build like this
 
 Next, ensure the Elm compiler is installed. Use your search engine of choice for instructions on how to do this on your OS/distro
 
@@ -43,3 +43,5 @@ The two steps above can be combined by running
 ```
 npm run dev
 ```
+
+[wasi-sdk]: https://github.com/WebAssembly/wasi-sdk
