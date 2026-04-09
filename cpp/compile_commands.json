@@ -7,10 +7,7 @@
       "-fno-exceptions",
       "-Wall",
       "-Wextra",
-      "-O2",
-      "--target=wasm32-wasi",
-      "--sysroot=/usr/share/wasi-sysroot",
-      "-stdlib=libc++",
+      "-O3",
       "-Iinclude",
       "-Ivendor",
       "wasm_helpers.cpp",
@@ -18,7 +15,7 @@
       "-o",
       "wasm_helpers.o"
     ],
-    "directory": "/home/daniel/code/audio-test/cpp",
+    "directory": "/home/daniel/code/planka/cpp",
     "output": "wasm_helpers.o"
   },
   {
@@ -29,10 +26,7 @@
       "-fno-exceptions",
       "-Wall",
       "-Wextra",
-      "-O2",
-      "--target=wasm32-wasi",
-      "--sysroot=/usr/share/wasi-sysroot",
-      "-stdlib=libc++",
+      "-O3",
       "-Iinclude",
       "-Ivendor",
       "vendor/StftPitchShift/StftPitchShift.cpp",
@@ -40,7 +34,45 @@
       "-o",
       "vendor/StftPitchShift/StftPitchShift.o"
     ],
-    "directory": "/home/daniel/code/audio-test/cpp",
+    "directory": "/home/daniel/code/planka/cpp",
     "output": "vendor/StftPitchShift/StftPitchShift.o"
+  },
+  {
+    "file": "processors/PitchShiftProcessor.cpp",
+    "arguments": [
+      "clang++",
+      "-std=c++20",
+      "-fno-exceptions",
+      "-Wall",
+      "-Wextra",
+      "-O3",
+      "-Iinclude",
+      "-Ivendor",
+      "processors/PitchShiftProcessor.cpp",
+      "-c",
+      "-o",
+      "processors/PitchShiftProcessor.o"
+    ],
+    "directory": "/home/daniel/code/planka/cpp",
+    "output": "processors/PitchShiftProcessor.o"
+  },
+  {
+    "file": "processors/PlaybackProcessor.cpp",
+    "arguments": [
+      "clang++",
+      "-std=c++20",
+      "-fno-exceptions",
+      "-Wall",
+      "-Wextra",
+      "-O3",
+      "-Iinclude",
+      "-Ivendor",
+      "processors/PlaybackProcessor.cpp",
+      "-c",
+      "-o",
+      "processors/PlaybackProcessor.o"
+    ],
+    "directory": "/home/daniel/code/planka/cpp",
+    "output": "processors/PlaybackProcessor.o"
   }
 ]
