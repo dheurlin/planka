@@ -27,20 +27,14 @@ export function wasmImportObject(
         )
       },
       ...additionalFunctions,
-      ...notImplementedFuncs([
-        // Inshallah this will not be called
-        '__mulsc3',
-      ]),
     },
     wasi_snapshot_preview1: notImplementedFuncs([
       'fd_close',
       'fd_seek',
       'fd_write',
-      'fd_read',
-      'fd_fdstat_get',
-      'fd_prestat_get',
-      'fd_prestat_dir_name',
       'proc_exit',
+      'args_get',
+      'args_sizes_get',
     ]),
   });
 }
